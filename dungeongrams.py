@@ -1,5 +1,16 @@
 import argparse, copy, math, pprint, queue, random, sys
 
+ACTIONS = [ '', 'w', 'a', 's', 'd' ]
+ACTIONS_SLOW = [ 'X', 'wX', 'aX', 'sX', 'dX' ]
+
+FLAW_NO_FLAW = 'no_flaw'
+FLAW_NO_ENEMY = 'no_enemy'
+FLAW_NO_SPEED = 'no_speed'
+FLAWS = [
+    FLAW_NO_FLAW,
+    FLAW_NO_ENEMY,
+    FLAW_NO_SPEED
+    ]
 
 
 class State:
@@ -94,16 +105,18 @@ class Game:
         if newstate.didlose:
             return newstate
 
-        if action == 'w':
+        if action in ['', 'X']:
+            dr, dc = 0, 0
+        elif action in ['w', 'wX']:
             dr, dc = -1, 0
-        elif action == 's':
+        elif action in ['s', 'sX']:
             dr, dc = 1, 0
-        elif action == 'a':
+        elif action in ['a', 'aX']:
             dr, dc = 0, -1
-        elif action == 'd':
+        elif action in ['d', 'dX']:
             dr, dc = 0, 1
         else:
-            dr, dc = 0, 0
+            raise RuntimeError('unrecognized action')
 
         nrc = Game.validmoveforplayer(level, newstate, newstate.player, dr, dc)
         if nrc:
@@ -158,7 +171,10 @@ class Game:
         if Game.enemycollide(level, newstate):
             newstate.didlose = True
 
-        return newstate
+        if action in ['X' 'wX', 'sX', 'aX', 'dX']:
+            return Game.step(level, newstate, '')
+        else:
+            return newstate
 
     @staticmethod
     def display(level, state):
@@ -262,6 +278,73 @@ class Game:
 
         
 
+def dosolve(level, state, solve_actions):
+    # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
+
+    start = copy.deepcopy(state)
+    tiebreaker = 0
+
+    frontier = queue.PriorityQueue()
+    frontier.put((0, tiebreaker, start))
+    tiebreaker += 1
+    came_from = {}
+    cost_so_far = {}
+    came_from[start] = (None, None)
+    cost_so_far[start] = 0
+
+    path_found = None
+
+    while not frontier.empty():
+        current = frontier.get()[2]
+
+        if current.player == level.exit:
+            path_found = current
+            break
+
+        neighbors = set()
+        for action in solve_actions:
+            neighbors.add((action, Game.step(level, current, action)))
+
+        for action, next in neighbors:
+            new_cost = cost_so_far[current] + 1
+            if next not in cost_so_far or new_cost < cost_so_far[next]:
+                cost_so_far[next] = new_cost
+                priority = new_cost + 0
+                frontier.put((priority, tiebreaker, next))
+                tiebreaker += 1
+                came_from[next] = (action, current)
+
+    if path_found is None:
+        return None
+
+    else:
+        actions = []
+        path = []
+
+        current = path_found
+        while current is not None:
+            path.append(current)
+            action, current = came_from[current]
+            actions.append(action)
+        actions.reverse()
+        actions = actions[1:]
+        path.reverse()
+
+        # debug check
+        chk_state = copy.deepcopy(state)
+        for ii in range(len(actions)):
+            chk_state = Game.step(level, chk_state, actions[ii])
+            if chk_state != path[ii+1]:
+                raise RuntimeError('actions do not follow path')
+
+        if not chk_state.didwin:
+            raise RuntimeError('actions do not lead to winning state')
+            
+        return actions
+
+
+
+
 def play(filename):
     g = Game()
     g.loadself(filename)
@@ -271,62 +354,47 @@ def play(filename):
         action = input()
         g.stepself(action)
 
-def solve(filename, display):
+def solve(filename, display, flaw):
+    if flaw not in FLAWS:
+        raise RuntimeError('unrecognized flaw')
+
     g = Game()
     g.loadself(filename)
 
-    # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
+    solve_actions = ACTIONS
+    if flaw == FLAW_NO_SPEED:
+        solve_actions = ACTIONS_SLOW
+    
+    solve_start = copy.deepcopy(g.state)
+    if flaw == FLAW_NO_ENEMY:
+        solve_start.enemies = []
+        solve_start.enemyst = []
 
-    start = copy.deepcopy(g.state)
-    tiebreaker = 0
+    actions = dosolve(g.level, solve_start, solve_actions)
 
-    frontier = queue.PriorityQueue()
-    frontier.put((0, tiebreaker, start))
-    tiebreaker += 1
-    came_from = {}
-    cost_so_far = {}
-    came_from[start] = None
-    cost_so_far[start] = 0
+    if actions is None:
+        print('No path found.')
 
-    path_found = None
+    else:
+        dsp_state = copy.deepcopy(g.state)
+        
+        if display:
+            Game.display(g.level, dsp_state)
 
-    while not frontier.empty():
-        current = frontier.get()[2]
+        for action in actions:
+            dsp_state = Game.step(g.level, dsp_state, action)
+            
+            if display:
+                print(action)
+                Game.display(g.level, dsp_state)
 
-        if current.player == g.level.exit:
-            path_found = current
-            break
+            if dsp_state.didlose:
+                print('Lost!')
+                break
+            elif dsp_state.didwin:
+                print('Won!')
+                break
 
-        neighbors = set()
-        for action in ['w', 'a', 's', 'd', '']:
-            neighbors.add(Game.step(g.level, current, action))
-
-        for next in neighbors:
-            new_cost = cost_so_far[current] + 1
-            if next not in cost_so_far or new_cost < cost_so_far[next]:
-                cost_so_far[next] = new_cost
-                priority = new_cost + 0
-                frontier.put((priority, tiebreaker, next))
-                tiebreaker += 1
-                came_from[next] = current
-
-    if display:
-        if path_found is None:
-            print('No path found.')
-
-        else:
-            print('Path found.')
-
-            path = []
-            current = path_found
-            while current is not None:
-                path.append(current)
-                current = came_from[current]
-            path.reverse()
-
-            for state in path:
-                print()
-                Game.display(g.level, state)
 
 
 
@@ -335,6 +403,7 @@ if __name__ == '__main__':
     parser.add_argument('level', type=str,help='Input level file.')
     parser.add_argument('--play', action='store_true', help='Play level.')
     parser.add_argument('--solve', action='store_true', help='Solve level.')
+    parser.add_argument('--flaw', type=str, help='Flaw for solver: ' + (', '.join(FLAWS)) + '.', default=FLAW_NO_FLAW)
     args = parser.parse_args()
 
     if args.play == args.solve:
@@ -344,4 +413,4 @@ if __name__ == '__main__':
         play(args.level)
 
     elif args.solve:
-        solve(args.level, True)
+        solve(args.level, True, args.flaw)
