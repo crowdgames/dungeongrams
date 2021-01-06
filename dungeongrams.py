@@ -18,15 +18,16 @@ class State:
         self.player = None
         self.enemies = []
         self.enemyst = []
+        self.spikes = []
         self.switches = []
         self.didwin = False
         self.didlose = False
 
     def __eq__(self, other):
-        return self.player, self.enemies, self.enemyst, self.switches, self.didwin, self.didlose == other.player, other.enemies, other.enemyst, other.switches, other.didwin, other.didlose
+        return self.player, self.enemies, self.enemyst, self.spikes, self.switches, self.didwin, self.didlose == other.player, other.enemies, other.enemyst, other.spikes, other.switches, other.didwin, other.didlose
     
     def __hash__(self):
-        return hash(self.player) + hash(tuple(self.enemies)) + hash(tuple(self.enemyst)) + hash(tuple(self.switches)) + hash(self.didwin) + hash(self.didlose)
+        return hash(self.player) + hash(tuple(self.enemies)) + hash(tuple(self.enemyst)) + hash(tuple(self.spikes)) + hash(tuple(self.switches)) + hash(self.didwin) + hash(self.didlose)
 
 
 
@@ -84,15 +85,21 @@ class Game:
         if (nr, nc) in state.enemies:
             return False
 
+        if (nr, nc) in state.spikes:
+            return False
+
         if (nr, nc) in state.switches:
             return False
 
         return (nr, nc)
 
     @staticmethod
-    def enemycollide(level, state):
+    def playercollidehazard(level, state):
         for enemy in state.enemies:
             if enemy == state.player:
+                return True
+        for spike in state.spikes:
+            if spike == state.player:
                 return True
         return False
 
@@ -122,7 +129,7 @@ class Game:
         if nrc:
             newstate.player = nrc
 
-        if Game.enemycollide(level, newstate):
+        if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
             
         elif newstate.player == level.exit:
@@ -168,7 +175,7 @@ class Game:
                             newstate.enemies[ii] = nrc
                             break
 
-        if Game.enemycollide(level, newstate):
+        if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
 
         if action in ['X' 'wX', 'sX', 'aX', 'dX']:
@@ -194,6 +201,8 @@ class Game:
                         sys.stdout.write('@')
                 elif (rr, cc) in state.enemies:
                     sys.stdout.write('#')
+                elif (rr, cc) in state.spikes:
+                    sys.stdout.write('^')
                 elif (rr, cc) in state.switches:
                     sys.stdout.write('~')
                 elif (rr, cc) == level.exit:
@@ -233,11 +242,13 @@ class Game:
                         pass
                     elif char == 'X':
                         level.blocks.add((rr, cc))
-                    elif char == '~':
-                        state.switches.append((rr, cc))
                     elif char == '#':
                         state.enemies.append((rr, cc))
                         state.enemyst.append(0)
+                    elif char == '^':
+                        state.spikes.append((rr, cc))
+                    elif char == '~':
+                        state.switches.append((rr, cc))
                     elif char == '@':
                         if state.player != None:
                             raise RuntimeError('multiple players found')
