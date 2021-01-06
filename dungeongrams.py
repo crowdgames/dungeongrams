@@ -224,12 +224,13 @@ class Game:
         sys.stdout.write('\n')
 
     @staticmethod
-    def load(filename):
+    def load(filename, addplayerexit):
         level = Level()
         state = State()
-        
+
+        rows = []
         with open(filename) as level_file:
-            for rr, line in enumerate(level_file.readlines()):
+            for line in level_file.readlines():
                 line = line.strip()
 
                 if level.width == 0:
@@ -239,26 +240,39 @@ class Game:
 
                 level.height += 1
 
-                for cc, char in enumerate(line):
-                    if char == '.':
-                        pass
-                    elif char == 'X':
-                        level.blocks.add((rr, cc))
-                    elif char == '#':
-                        state.enemies.append((rr, cc))
-                        state.enemyst.append(0)
-                    elif char == '^':
-                        state.spikes.append((rr, cc))
-                    elif char == '~':
-                        state.switches.append((rr, cc))
-                    elif char == '@':
-                        if state.player != None:
-                            raise RuntimeError('multiple players found')
-                        state.player = (rr, cc)
-                    elif char == 'O':
-                        if level.exit != None:
-                            raise RuntimeError('multiple exits found')
-                        level.exit = (rr, cc)
+                rows.append(line)
+
+        if addplayerexit:
+            level.width += 4
+            
+            newrows = []
+            for rr, row in enumerate(rows):
+                pref = '@.' if rr == 0 else '..'
+                suff = '.O' if rr + 1 == len(rows) else '..'
+                newrows.append(pref + row + suff)
+            rows = newrows
+
+        for rr, row in enumerate(rows):
+            for cc, char in enumerate(row):
+                if char == '.':
+                    pass
+                elif char == 'X':
+                    level.blocks.add((rr, cc))
+                elif char == '#':
+                    state.enemies.append((rr, cc))
+                    state.enemyst.append(0)
+                elif char == '^':
+                    state.spikes.append((rr, cc))
+                elif char == '~':
+                    state.switches.append((rr, cc))
+                elif char == '@':
+                    if state.player != None:
+                        raise RuntimeError('multiple players found')
+                    state.player = (rr, cc)
+                elif char == 'O':
+                    if level.exit != None:
+                        raise RuntimeError('multiple exits found')
+                    level.exit = (rr, cc)
 
         if state.player == None:
             raise RuntimeError('no player found')
@@ -269,11 +283,11 @@ class Game:
 
 
 
-    def loadself(self, filename):
+    def loadself(self, filename, addplayerexit):
         if self.loaded:
             raise RuntimeError('already loaded')
 
-        self.level, self.state = Game.load(filename)
+        self.level, self.state = Game.load(filename, addplayerexit)
         
         self.loaded = True
 
@@ -358,21 +372,21 @@ def dosolve(level, state, solve_actions):
 
 
 
-def play(filename):
+def play(levelfile, addplayerexit):
     g = Game()
-    g.loadself(filename)
+    g.loadself(levelfile, addplayerexit)
 
     while True:
         g.displayself()
         action = input()
         g.stepself(action)
 
-def solve(filename, display, flaw):
+def solve(levelfile, addplayerexit, display, flaw):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
     g = Game()
-    g.loadself(filename)
+    g.loadself(levelfile, addplayerexit)
 
     solve_actions = ACTIONS
     if flaw == FLAW_NO_SPEED:
@@ -416,8 +430,9 @@ def solve(filename, display, flaw):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DungeonGrams game.')
-    parser.add_argument('level', type=str,help='Input level file.')
+    parser.add_argument('levelfile', type=str,help='Input level file.')
     parser.add_argument('--play', action='store_true', help='Play level.')
+    parser.add_argument('--addplayerexit', action='store_true', help='Add player and exit to partial level.')
     parser.add_argument('--solve', action='store_true', help='Solve level.')
     parser.add_argument('--flaw', type=str, help='Flaw for solver: ' + (', '.join(FLAWS)) + '.', default=FLAW_NO_FLAW)
     args = parser.parse_args()
@@ -426,7 +441,7 @@ if __name__ == '__main__':
         raise RuntimeError('exactly one of --play and --solve must be given')
 
     if args.play:
-        play(args.level)
+        play(args.levelfile, args.addplayerexit)
 
     elif args.solve:
-        solve(args.level, True, args.flaw)
+        solve(args.levelfile, args.addplayerexit, True, args.flaw)
