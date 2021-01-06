@@ -4,11 +4,13 @@ ACTIONS = [ '', 'w', 'a', 's', 'd' ]
 ACTIONS_SLOW = [ 'X', 'wX', 'aX', 'sX', 'dX' ]
 
 FLAW_NO_FLAW = 'no_flaw'
-FLAW_NO_ENEMY = 'no_enemy'
+FLAW_NO_SPIKE = 'no_spike'
+FLAW_NO_HAZARD = 'no_hazard'
 FLAW_NO_SPEED = 'no_speed'
 FLAWS = [
     FLAW_NO_FLAW,
-    FLAW_NO_ENEMY,
+    FLAW_NO_SPIKE,
+    FLAW_NO_HAZARD,
     FLAW_NO_SPEED
     ]
 
@@ -377,7 +379,10 @@ def solve(filename, display, flaw):
         solve_actions = ACTIONS_SLOW
     
     solve_start = copy.deepcopy(g.state)
-    if flaw == FLAW_NO_ENEMY:
+    if flaw == FLAW_NO_SPIKE:
+        solve_start.spikes = []
+    elif flaw == FLAW_NO_HAZARD:
+        solve_start.spikes = []
         solve_start.enemies = []
         solve_start.enemyst = []
 
