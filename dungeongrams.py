@@ -198,7 +198,7 @@ class Game:
                     sys.stdout.write('~')
                 elif (rr, cc) == level.exit:
                     if len(state.switches) == 0:
-                        sys.stdout.write('*')
+                        sys.stdout.write('O')
                     else:
                         sys.stdout.write('-')
                 elif (rr, cc) in level.blocks:
@@ -242,7 +242,7 @@ class Game:
                         if state.player != None:
                             raise RuntimeError('multiple players found')
                         state.player = (rr, cc)
-                    elif char == '*':
+                    elif char == 'O':
                         if level.exit != None:
                             raise RuntimeError('multiple exits found')
                         level.exit = (rr, cc)
