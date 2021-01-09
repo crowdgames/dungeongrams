@@ -224,7 +224,7 @@ class Game:
         sys.stdout.write('\n')
 
     @staticmethod
-    def load(filename, addplayerexit):
+    def load(filename, partial):
         level = Level()
         state = State()
 
@@ -242,7 +242,7 @@ class Game:
 
                 rows.append(line)
 
-        if addplayerexit:
+        if partial:
             level.width += 4
             
             newrows = []
@@ -283,11 +283,11 @@ class Game:
 
 
 
-    def loadself(self, filename, addplayerexit):
+    def loadself(self, filename, partial):
         if self.loaded:
             raise RuntimeError('already loaded')
 
-        self.level, self.state = Game.load(filename, addplayerexit)
+        self.level, self.state = Game.load(filename, partial)
         
         self.loaded = True
 
@@ -375,21 +375,21 @@ def dosolve(level, state, solve_actions):
 
 
 
-def play(levelfile, addplayerexit):
+def play(levelfile, partial):
     g = Game()
-    g.loadself(levelfile, addplayerexit)
+    g.loadself(levelfile, partial)
 
     while True:
         g.displayself()
         action = input()
         g.stepself(action)
 
-def solve(levelfile, addplayerexit, display, flaw):
+def solve(levelfile, partial, display, flaw):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
     g = Game()
-    g.loadself(levelfile, addplayerexit)
+    g.loadself(levelfile, partial)
 
     solve_actions = ACTIONS
     if flaw == FLAW_NO_SPEED:
@@ -436,7 +436,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DungeonGrams game.')
     parser.add_argument('levelfile', type=str,help='Input level file.')
     parser.add_argument('--play', action='store_true', help='Play level.')
-    parser.add_argument('--addplayerexit', action='store_true', help='Add player and exit to partial level.')
+    parser.add_argument('--partial', action='store_true', help='Add player and exit to partial level.')
     parser.add_argument('--solve', action='store_true', help='Solve level.')
     parser.add_argument('--flaw', type=str, help='Flaw for solver: ' + (', '.join(FLAWS)) + '.', default=FLAW_NO_FLAW)
     args = parser.parse_args()
@@ -445,7 +445,7 @@ if __name__ == '__main__':
         raise RuntimeError('exactly one of --play and --solve must be given')
 
     if args.play:
-        play(args.levelfile, args.addplayerexit)
+        play(args.levelfile, args.partial)
 
     elif args.solve:
-        solve(args.levelfile, args.addplayerexit, True, args.flaw)
+        solve(args.levelfile, args.partial, True, args.flaw)
