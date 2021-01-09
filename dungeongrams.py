@@ -319,10 +319,13 @@ def dosolve(level, state, solve_actions):
     came_from[start] = (None, None)
     cost_so_far[start] = 0
 
+    furthest_col = 0
     path_found = None
 
     while not frontier.empty():
         current = frontier.get()[2]
+
+        furthest_col = max(furthest_col, current.player[1])
 
         if current.player == level.exit:
             path_found = current
@@ -342,7 +345,7 @@ def dosolve(level, state, solve_actions):
                 came_from[next] = (action, current)
 
     if path_found is None:
-        return None
+        return False, (furthest_col, level.width)
 
     else:
         actions = []
@@ -367,7 +370,7 @@ def dosolve(level, state, solve_actions):
         if not chk_state.didwin:
             raise RuntimeError('actions do not lead to winning state')
             
-        return actions
+        return True, actions
 
 
 
@@ -400,10 +403,11 @@ def solve(levelfile, addplayerexit, display, flaw):
         solve_start.enemies = []
         solve_start.enemyst = []
 
-    actions = dosolve(g.level, solve_start, solve_actions)
+    solved, info = dosolve(g.level, solve_start, solve_actions)
 
-    if actions is None:
+    if not solved:
         print('No path found.')
+        print('Max column: %d / %d.' % info)
 
     else:
         dsp_state = copy.deepcopy(g.state)
@@ -411,7 +415,7 @@ def solve(levelfile, addplayerexit, display, flaw):
         if display:
             Game.display(g.level, dsp_state)
 
-        for action in actions:
+        for action in info:
             dsp_state = Game.step(g.level, dsp_state, action)
             
             if display:
