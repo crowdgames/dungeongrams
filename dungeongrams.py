@@ -1,4 +1,4 @@
-import argparse, math, pprint, queue, random, sys
+import argparse, heapq, math, pprint, random, sys
 from os.path import isfile
 
 ACTIONS = [ '', 'w', 'a', 's', 'd' ]
@@ -368,8 +368,9 @@ def dosolve(level, state, solve_actions):
     start_tup = start.totuple()
     tiebreaker = 0
 
-    frontier = queue.PriorityQueue()
-    frontier.put((0, start_tup))
+    frontier = []
+    heapq.heappush(frontier, (0, start_tup))
+
     came_from = {}
     cost_so_far = {}
     came_from[start_tup] = (None, None)
@@ -380,8 +381,8 @@ def dosolve(level, state, solve_actions):
 
     path_found = None
 
-    while not frontier.empty():
-        current_tup = frontier.get()[1]
+    while len(frontier) > 0:
+        current_tup = heapq.heappop(frontier)[1]
         current = State.fromtuple(current_tup)
 
         current_switches = level.switchcount - len(current.switches)
@@ -412,7 +413,7 @@ def dosolve(level, state, solve_actions):
 
                 priority = new_cost + heur
 
-                frontier.put((priority, nbr_tup))
+                heapq.heappush(frontier, (priority, nbr_tup))
                 came_from[nbr_tup] = (action, current_tup)
 
     if path_found is None:
