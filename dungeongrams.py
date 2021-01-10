@@ -399,7 +399,14 @@ def dosolve(level, state, solve_actions):
             new_cost = cost_so_far[current_tup] + 1
             if nbr_tup not in cost_so_far or new_cost < cost_so_far[nbr_tup]:
                 cost_so_far[nbr_tup] = new_cost
-                priority = new_cost + 0
+
+                heur = 0
+                heur += ((nbr.player[0] - level.exit[0])**2 + (nbr.player[1] - level.exit[1])**2)**0.5
+                for switch in nbr.switches:
+                    heur += ((nbr.player[0] - switch[0])**2 + (nbr.player[1] - switch[1])**2)**0.5
+
+                priority = new_cost + heur
+
                 frontier.put((priority, nbr_tup))
                 came_from[nbr_tup] = (action, current_tup)
 
