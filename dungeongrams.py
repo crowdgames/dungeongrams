@@ -114,12 +114,10 @@ class Game:
 
     @staticmethod
     def playercollidehazard(level, state):
-        for enemy in state.enemies:
-            if enemy == state.player:
-                return True
-        for spike in state.spikes:
-            if spike == state.player:
-                return True
+        if state.player in state.enemies:
+            return True
+        if state.player in state.spikes:
+            return True
         return False
 
     @staticmethod
