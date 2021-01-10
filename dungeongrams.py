@@ -211,11 +211,11 @@ class Game:
                     if len(state.switches) == 0:
                         sys.stdout.write('O')
                     else:
-                        sys.stdout.write('-')
+                        sys.stdout.write('o')
                 elif (rr, cc) in level.blocks:
                     sys.stdout.write('X')
                 else:
-                    sys.stdout.write('.')
+                    sys.stdout.write('-')
             sys.stdout.write('X')
             sys.stdout.write('\n')
 
@@ -254,7 +254,7 @@ class Game:
 
         for rr, row in enumerate(rows):
             for cc, char in enumerate(row):
-                if char == '.':
+                if char == '-':
                     pass
                 elif char == 'X':
                     level.blocks.add((rr, cc))
@@ -273,6 +273,8 @@ class Game:
                     if level.exit != None:
                         raise RuntimeError('multiple exits found')
                     level.exit = (rr, cc)
+                else:
+                    raise RuntimeError('unrecognized character')
 
         if state.player == None:
             raise RuntimeError('no player found')
