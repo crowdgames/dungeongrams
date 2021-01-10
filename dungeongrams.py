@@ -55,6 +55,7 @@ class Level:
         self.width = 0
         self.height = 0
 
+        self.switchcount = 0
         self.exit = None
         self.blocks = set()
 
@@ -130,21 +131,21 @@ class Game:
             return newstate
 
         if action in ['', 'X']:
-            dr, dc = 0, 0
+            pdr, pdc = 0, 0
         elif action in ['w', 'wX']:
-            dr, dc = -1, 0
+            pdr, pdc = -1, 0
         elif action in ['s', 'sX']:
-            dr, dc = 1, 0
+            pdr, pdc = 1, 0
         elif action in ['a', 'aX']:
-            dr, dc = 0, -1
+            pdr, pdc = 0, -1
         elif action in ['d', 'dX']:
-            dr, dc = 0, 1
+            pdr, pdc = 0, 1
         else:
             raise RuntimeError('unrecognized action')
 
-        nrc = Game.validmoveforplayer(level, newstate, newstate.player, dr, dc)
-        if nrc:
-            newstate.player = nrc
+        pnrc = Game.validmoveforplayer(level, newstate, newstate.player, pdr, pdc)
+        if pnrc:
+            newstate.player = pnrc
 
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
@@ -173,61 +174,61 @@ class Game:
                     tgrr = newstate.enemyst[ii][0]
                     tgcc = newstate.enemyst[ii][1]
                     
-                rr, cc = newstate.enemies[ii]
-                dr = tgrr - rr
-                dc = tgcc - cc
+                err, ecc = newstate.enemies[ii]
+                edr = tgrr - err
+                edc = tgcc - ecc
 
-                if (dr, dc) == (0, 0):
+                if (edr, edc) == (0, 0):
                     pass
                 else:
                     trymoves = []
-                    if abs(dr) > abs(dc):
-                        if dr > 0:
+                    if abs(edr) > abs(edc):
+                        if edr > 0:
                             trymoves.append((1, 0))
-                        elif dr < 0:
+                        elif edr < 0:
                             trymoves.append((-1, 0))
-                        if dc > 0:
+                        if edc > 0:
                             trymoves.append((0, 1))
-                        elif dc < 0:
+                        elif edc < 0:
                             trymoves.append((0, -1))
-                    elif abs(dc) > abs(dr):
-                        if dc > 0:
+                    elif abs(edc) > abs(edr):
+                        if edc > 0:
                             trymoves.append((0, 1))
-                        elif dc < 0:
+                        elif edc < 0:
                             trymoves.append((0, -1))
-                        if dr > 0:
+                        if edr > 0:
                             trymoves.append((1, 0))
-                        elif dr < 0:
+                        elif edr < 0:
                             trymoves.append((-1, 0))
-                    elif (rr + cc) % 2 == 0:
-                        if dr > 0:
+                    elif (err + ecc) % 2 == 0:
+                        if edr > 0:
                             trymoves.append((1, 0))
-                        elif dr < 0:
+                        elif edr < 0:
                             trymoves.append((-1, 0))
-                        if dc > 0:
+                        if edc > 0:
                             trymoves.append((0, 1))
-                        elif dc < 0:
+                        elif edc < 0:
                             trymoves.append((0, -1))
                     else:
-                        if dc > 0:
+                        if edc > 0:
                             trymoves.append((0, 1))
-                        elif dc < 0:
+                        elif edc < 0:
                             trymoves.append((0, -1))
-                        if dr > 0:
+                        if edr > 0:
                             trymoves.append((1, 0))
-                        elif dr < 0:
+                        elif edr < 0:
                             trymoves.append((-1, 0))
 
-                    for dr, dc in trymoves:
-                        nrc = Game.validmoveforenemy(level, newstate, newstate.enemies[ii], dr, dc)
-                        if nrc:
-                            newstate.enemies[ii] = nrc
+                    for edr, edc in trymoves:
+                        enrc = Game.validmoveforenemy(level, newstate, newstate.enemies[ii], edr, edc)
+                        if enrc:
+                            newstate.enemies[ii] = enrc
                             break
 
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
 
-        if action in ['X' 'wX', 'sX', 'aX', 'dX']:
+        if action in ['X', 'wX', 'sX', 'aX', 'dX']:
             return Game.step(level, newstate, '')
         else:
             return newstate
@@ -312,6 +313,7 @@ class Game:
                     state.spikes.append((rr, cc))
                 elif char == '~':
                     state.switches.append((rr, cc))
+                    level.switchcount += 1
                 elif char == '@':
                     if state.player != None:
                         raise RuntimeError('multiple players found')
@@ -368,14 +370,20 @@ def dosolve(level, state, solve_actions):
     came_from[start_tup] = (None, None)
     cost_so_far[start_tup] = 0
 
-    furthest_col = 0
+    best_switches = 0
+    best_cols = 0
+
     path_found = None
 
     while not frontier.empty():
         current_tup = frontier.get()[1]
         current = State.fromtuple(current_tup)
 
-        furthest_col = max(furthest_col, current.player[1])
+        current_switches = level.switchcount - len(current.switches)
+        current_cols = current.player[1] + 1
+
+        best_switches = max(best_switches, current_switches)
+        best_cols = max(best_cols, current_cols)
 
         if current.player == level.exit:
             path_found = current_tup
@@ -396,7 +404,7 @@ def dosolve(level, state, solve_actions):
                 came_from[nbr_tup] = (action, current_tup)
 
     if path_found is None:
-        return False, (furthest_col, level.width)
+        return False, (best_switches,  best_cols)
 
     else:
         actions = []
@@ -457,8 +465,10 @@ def solve(levelfile, partial, display, flaw):
     solved, info = dosolve(g.level, solve_start, solve_actions)
 
     if not solved:
+        best_switches, best_cols = info
         print('No path found.')
-        print('Max column: %d / %d.' % info)
+        print('Best switches: %d / %d.' % (best_switches, g.level.switchcount))
+        print('Best column: %d / %d.' % (best_cols, g.level.width))
 
     else:
         dsp_state = g.state.clone()
