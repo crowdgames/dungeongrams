@@ -1,4 +1,4 @@
-import argparse, copy, math, pprint, queue, random, sys
+import argparse, math, pprint, queue, random, sys
 
 ACTIONS = [ '', 'w', 'a', 's', 'd' ]
 ACTIONS_SLOW = [ 'X', 'wX', 'aX', 'sX', 'dX' ]
@@ -29,11 +29,24 @@ class State:
         self.didwin = False
         self.didlose = False
 
-    def __eq__(self, other):
-        return self.player, self.enemies, self.enemyst, self.enemymv, self.spikes, self.switches, self.didwin, self.didlose == other.player, other.enemies, other.enemyst, other.enemymv, other.spikes, other.switches, other.didwin, other.didlose
-    
-    def __hash__(self):
-        return hash(self.player) ^ hash(tuple(self.enemies)) ^ hash(tuple(self.enemyst)) ^ hash(tuple(self.enemymv)) ^ hash(tuple(self.spikes)) ^ hash(tuple(self.switches)) ^ hash(self.didwin) ^ hash(self.didlose)
+    def clone(self):
+        return State.fromtuple(self.totuple())
+
+    def totuple(self):
+        return (self.player, tuple(self.enemies), tuple(self.enemyst), tuple(self.enemymv), tuple(self.spikes), tuple(self.switches), self.didwin, self.didlose)
+
+    @staticmethod
+    def fromtuple(tup):
+        ret = State()
+        ret.player = tup[0]
+        ret.enemies = list(tup[1])
+        ret.enemyst = list(tup[2])
+        ret.enemymv = list(tup[3])
+        ret.spikes = list(tup[4])
+        ret.switches = list(tup[5])
+        ret.didwin = tup[6]
+        ret.didlose = tup[7]
+        return ret
 
 
 
@@ -111,7 +124,7 @@ class Game:
 
     @staticmethod
     def step(level, state, action):
-        newstate = copy.deepcopy(state)
+        newstate = state.clone()
 
         if newstate.didwin:
             return newstate
@@ -343,41 +356,43 @@ class Game:
 def dosolve(level, state, solve_actions):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
 
-    start = copy.deepcopy(state)
+    start = state.clone()
+    start_tup = start.totuple()
     tiebreaker = 0
 
     frontier = queue.PriorityQueue()
-    frontier.put((0, tiebreaker, start))
-    tiebreaker += 1
+    frontier.put((0, start_tup))
     came_from = {}
     cost_so_far = {}
-    came_from[start] = (None, None)
-    cost_so_far[start] = 0
+    came_from[start_tup] = (None, None)
+    cost_so_far[start_tup] = 0
 
     furthest_col = 0
     path_found = None
 
     while not frontier.empty():
-        current = frontier.get()[2]
+        current_tup = frontier.get()[1]
+        current = State.fromtuple(current_tup)
 
         furthest_col = max(furthest_col, current.player[1])
 
         if current.player == level.exit:
-            path_found = current
+            path_found = current_tup
             break
 
         neighbors = set()
         for action in solve_actions:
             neighbors.add((action, Game.step(level, current, action)))
 
-        for action, next in neighbors:
-            new_cost = cost_so_far[current] + 1
-            if next not in cost_so_far or new_cost < cost_so_far[next]:
-                cost_so_far[next] = new_cost
+        for action, nbr in neighbors:
+            nbr_tup = nbr.totuple()
+
+            new_cost = cost_so_far[current_tup] + 1
+            if nbr_tup not in cost_so_far or new_cost < cost_so_far[nbr_tup]:
+                cost_so_far[nbr_tup] = new_cost
                 priority = new_cost + 0
-                frontier.put((priority, tiebreaker, next))
-                tiebreaker += 1
-                came_from[next] = (action, current)
+                frontier.put((priority, nbr_tup))
+                came_from[nbr_tup] = (action, current_tup)
 
     if path_found is None:
         return False, (furthest_col, level.width)
@@ -386,20 +401,20 @@ def dosolve(level, state, solve_actions):
         actions = []
         path = []
 
-        current = path_found
-        while current is not None:
-            path.append(current)
-            action, current = came_from[current]
+        current_tup = path_found
+        while current_tup is not None:
+            path.append(State.fromtuple(current_tup))
+            action, current_tup = came_from[current_tup]
             actions.append(action)
         actions.reverse()
         actions = actions[1:]
         path.reverse()
 
         # debug check
-        chk_state = copy.deepcopy(state)
+        chk_state = state.clone()
         for ii in range(len(actions)):
             chk_state = Game.step(level, chk_state, actions[ii])
-            if chk_state != path[ii+1]:
+            if chk_state.totuple() != path[ii+1].totuple():
                 raise RuntimeError('actions do not follow path')
 
         if not chk_state.didwin:
@@ -430,7 +445,7 @@ def solve(levelfile, partial, display, flaw):
     if flaw == FLAW_NO_SPEED:
         solve_actions = ACTIONS_SLOW
     
-    solve_start = copy.deepcopy(g.state)
+    solve_start = g.state.clone()
     if flaw == FLAW_NO_SPIKE:
         solve_start.spikes = []
     elif flaw == FLAW_NO_HAZARD:
@@ -446,7 +461,7 @@ def solve(levelfile, partial, display, flaw):
         print('Max column: %d / %d.' % info)
 
     else:
-        dsp_state = copy.deepcopy(g.state)
+        dsp_state = g.state.clone()
         
         if display:
             Game.display(g.level, dsp_state)
