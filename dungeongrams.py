@@ -14,22 +14,26 @@ FLAWS = [
     FLAW_NO_SPEED
     ]
 
+ENEMY_RANGE = 3
+
+
 
 class State:
     def __init__(self):
         self.player = None
         self.enemies = []
         self.enemyst = []
+        self.enemymv = []
         self.spikes = []
         self.switches = []
         self.didwin = False
         self.didlose = False
 
     def __eq__(self, other):
-        return self.player, self.enemies, self.enemyst, self.spikes, self.switches, self.didwin, self.didlose == other.player, other.enemies, other.enemyst, other.spikes, other.switches, other.didwin, other.didlose
+        return self.player, self.enemies, self.enemyst, self.enemymv, self.spikes, self.switches, self.didwin, self.didlose == other.player, other.enemies, other.enemyst, other.enemymv, other.spikes, other.switches, other.didwin, other.didlose
     
     def __hash__(self):
-        return hash(self.player) + hash(tuple(self.enemies)) + hash(tuple(self.enemyst)) + hash(tuple(self.spikes)) + hash(tuple(self.switches)) + hash(self.didwin) + hash(self.didlose)
+        return hash(self.player) ^ hash(tuple(self.enemies)) ^ hash(tuple(self.enemyst)) ^ hash(tuple(self.enemymv)) ^ hash(tuple(self.spikes)) ^ hash(tuple(self.switches)) ^ hash(self.didwin) ^ hash(self.didlose)
 
 
 
@@ -141,41 +145,69 @@ class Game:
             del newstate.switches[newstate.switches.index(newstate.player)]
 
         for ii in range(len(newstate.enemies)):
-            if newstate.enemyst[ii] == 0:
-                newstate.enemyst[ii] = 1
+            if newstate.enemymv[ii] == 0:
+                newstate.enemymv[ii] = 1
             else:
-                newstate.enemyst[ii] = 0
+                newstate.enemymv[ii] = 0
 
+                strr, stcc = newstate.enemyst[ii]
+                stdr = newstate.player[0] - strr
+                stdc = newstate.player[1] - stcc
+
+                if (stdr**2 + stdc**2)**0.5 <= ENEMY_RANGE:
+                    tgrr = newstate.player[0]
+                    tgcc = newstate.player[1]
+                else:
+                    tgrr = newstate.enemyst[ii][0]
+                    tgcc = newstate.enemyst[ii][1]
+                    
                 rr, cc = newstate.enemies[ii]
-                dr = newstate.player[0] - rr
-                dc = newstate.player[1] - cc
+                dr = tgrr - rr
+                dc = tgcc - cc
 
-                if (dr**2 + dc**2)**0.5 <= 8:
-                    trymoves = []
-                    if abs(dr) > abs(dc):
-                        if dr > 0:
-                            trymoves.append((1, 0))
-                        elif dr < 0:
-                            trymoves.append((-1, 0))
-                        if dc > 0:
-                            trymoves.append((0, 1))
-                        elif dc < 0:
-                            trymoves.append((0, -1))
-                    else:
-                        if dc > 0:
-                            trymoves.append((0, 1))
-                        elif dc < 0:
-                            trymoves.append((0, -1))
-                        if dr > 0:
-                            trymoves.append((1, 0))
-                        elif dr < 0:
-                            trymoves.append((-1, 0))
+                trymoves = []
+                if abs(dr) > abs(dc):
+                    if dr > 0:
+                        trymoves.append((1, 0))
+                    elif dr < 0:
+                        trymoves.append((-1, 0))
+                    if dc > 0:
+                        trymoves.append((0, 1))
+                    elif dc < 0:
+                        trymoves.append((0, -1))
+                elif abs(dc) > abs(dr):
+                    if dc > 0:
+                        trymoves.append((0, 1))
+                    elif dc < 0:
+                        trymoves.append((0, -1))
+                    if dr > 0:
+                        trymoves.append((1, 0))
+                    elif dr < 0:
+                        trymoves.append((-1, 0))
+                elif (rr + cc) % 2 == 0:
+                    if dr > 0:
+                        trymoves.append((1, 0))
+                    elif dr < 0:
+                        trymoves.append((-1, 0))
+                    if dc > 0:
+                        trymoves.append((0, 1))
+                    elif dc < 0:
+                        trymoves.append((0, -1))
+                else:
+                    if dc > 0:
+                        trymoves.append((0, 1))
+                    elif dc < 0:
+                        trymoves.append((0, -1))
+                    if dr > 0:
+                        trymoves.append((1, 0))
+                    elif dr < 0:
+                        trymoves.append((-1, 0))
 
-                    for dr, dc in trymoves:
-                        nrc = Game.validmoveforenemy(level, newstate, newstate.enemies[ii], dr, dc)
-                        if nrc:
-                            newstate.enemies[ii] = nrc
-                            break
+                for dr, dc in trymoves:
+                    nrc = Game.validmoveforenemy(level, newstate, newstate.enemies[ii], dr, dc)
+                    if nrc:
+                        newstate.enemies[ii] = nrc
+                        break
 
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
@@ -260,7 +292,8 @@ class Game:
                     level.blocks.add((rr, cc))
                 elif char == '#':
                     state.enemies.append((rr, cc))
-                    state.enemyst.append(0)
+                    state.enemyst.append((rr, cc))
+                    state.enemymv.append(0)
                 elif char == '^':
                     state.spikes.append((rr, cc))
                 elif char == '~':
@@ -404,6 +437,7 @@ def solve(levelfile, partial, display, flaw):
         solve_start.spikes = []
         solve_start.enemies = []
         solve_start.enemyst = []
+        solve_start.enemymv = []
 
     solved, info = dosolve(g.level, solve_start, solve_actions)
 
