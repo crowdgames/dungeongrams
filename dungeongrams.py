@@ -1,4 +1,5 @@
 import argparse, math, pprint, queue, random, sys
+from os.path import isfile
 
 ACTIONS = [ '', 'w', 'a', 's', 'd' ]
 ACTIONS_SLOW = [ 'X', 'wX', 'aX', 'sX', 'dX' ]
@@ -272,23 +273,28 @@ class Game:
         sys.stdout.write('\n')
 
     @staticmethod
-    def load(filename, partial):
+    def load(filename, partial, is_file=True):
         level = Level()
         state = State()
 
         rows = []
-        with open(filename) as level_file:
-            for line in level_file.readlines():
-                line = line.strip()
+        if is_file:
+            with open(filename) as level_file:
+                for line in level_file.readlines():
+                    line = line.strip()
 
-                if level.width == 0:
-                    level.width = len(line)
-                elif level.width != len(line):
-                    raise RuntimeError('lines not all same length')
+                    if level.width == 0:
+                        level.width = len(line)
+                    elif level.width != len(line):
+                        raise RuntimeError('lines not all same length')
 
-                level.height += 1
+                    level.height += 1
 
-                rows.append(line)
+                    rows.append(line)
+        else:
+            rows = filename
+            level.width = len(rows[0])
+            level.height = len(rows)
 
         if partial:
             level.width += 4
@@ -334,12 +340,11 @@ class Game:
 
 
 
-    def loadself(self, filename, partial):
+    def loadself(self, filename, partial, is_file=True):
         if self.loaded:
             raise RuntimeError('already loaded')
 
-        self.level, self.state = Game.load(filename, partial)
-        
+        self.level, self.state = Game.load(filename, partial, is_file=is_file)
         self.loaded = True
 
     def stepself(self, action):
@@ -443,7 +448,7 @@ def play(levelfile, partial):
         action = input()
         g.stepself(action)
 
-def solve(levelfile, partial, display, flaw):
+def solve_with_print(levelfile, partial, display, flaw):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
@@ -490,8 +495,33 @@ def solve(levelfile, partial, display, flaw):
                 print('Won!')
                 break
 
+def percent_playable(levelfile, partial, flaw, is_file=True):
+    if flaw not in FLAWS:
+        raise RuntimeError('unrecognized flaw')
 
+    g = Game()
+    g.loadself(levelfile, partial, is_file=is_file)
 
+    solve_actions = ACTIONS
+    if flaw == FLAW_NO_SPEED:
+        solve_actions = ACTIONS_SLOW
+    
+    solve_start = g.state.clone()
+    if flaw == FLAW_NO_SPIKE:
+        solve_start.spikes = []
+    elif flaw == FLAW_NO_HAZARD:
+        solve_start.spikes = []
+        solve_start.enemies = []
+        solve_start.enemyst = []
+
+    solved, info = dosolve(g.level, solve_start, solve_actions)
+
+    if solved:
+        return 1.0
+
+    best_switches, best_cols = info
+    return (best_switches + best_cols / g.level.width) / (g.level.switchcount + 1)
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DungeonGrams game.')
@@ -509,4 +539,4 @@ if __name__ == '__main__':
         play(args.levelfile, args.partial)
 
     elif args.solve:
-        solve(args.levelfile, args.partial, True, args.flaw)
+        solve_with_print(args.levelfile, args.partial, True, args.flaw)
