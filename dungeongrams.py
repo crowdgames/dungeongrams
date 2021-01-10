@@ -23,7 +23,7 @@ class State:
         self.player = None
         self.enemies = []
         self.enemyst = []
-        self.enemymv = []
+        self.enemymv = False
         self.spikes = []
         self.switches = []
         self.didwin = False
@@ -33,7 +33,7 @@ class State:
         return State.fromtuple(self.totuple())
 
     def totuple(self):
-        return (self.player, tuple(self.enemies), tuple(self.enemyst), tuple(self.enemymv), tuple(self.spikes), tuple(self.switches), self.didwin, self.didlose)
+        return (self.player, tuple(self.enemies), tuple(self.enemyst), self.enemymv, tuple(self.spikes), tuple(self.switches), self.didwin, self.didlose)
 
     @staticmethod
     def fromtuple(tup):
@@ -41,7 +41,7 @@ class State:
         ret.player = tup[0]
         ret.enemies = list(tup[1])
         ret.enemyst = list(tup[2])
-        ret.enemymv = list(tup[3])
+        ret.enemymv = tup[3]
         ret.spikes = list(tup[4])
         ret.switches = list(tup[5])
         ret.didwin = tup[6]
@@ -155,12 +155,13 @@ class Game:
         elif newstate.player in newstate.switches:
             del newstate.switches[newstate.switches.index(newstate.player)]
 
-        for ii in range(len(newstate.enemies)):
-            if newstate.enemymv[ii] == 0:
-                newstate.enemymv[ii] = 1
-            else:
-                newstate.enemymv[ii] = 0
-
+        
+        if not newstate.enemymv:
+            newstate.enemymv = True
+        else:
+            newstate.enemymv = False
+            
+            for ii in range(len(newstate.enemies)):
                 strr, stcc = newstate.enemyst[ii]
                 stdr = newstate.player[0] - strr
                 stdc = newstate.player[1] - stcc
@@ -176,49 +177,52 @@ class Game:
                 dr = tgrr - rr
                 dc = tgcc - cc
 
-                trymoves = []
-                if abs(dr) > abs(dc):
-                    if dr > 0:
-                        trymoves.append((1, 0))
-                    elif dr < 0:
-                        trymoves.append((-1, 0))
-                    if dc > 0:
-                        trymoves.append((0, 1))
-                    elif dc < 0:
-                        trymoves.append((0, -1))
-                elif abs(dc) > abs(dr):
-                    if dc > 0:
-                        trymoves.append((0, 1))
-                    elif dc < 0:
-                        trymoves.append((0, -1))
-                    if dr > 0:
-                        trymoves.append((1, 0))
-                    elif dr < 0:
-                        trymoves.append((-1, 0))
-                elif (rr + cc) % 2 == 0:
-                    if dr > 0:
-                        trymoves.append((1, 0))
-                    elif dr < 0:
-                        trymoves.append((-1, 0))
-                    if dc > 0:
-                        trymoves.append((0, 1))
-                    elif dc < 0:
-                        trymoves.append((0, -1))
+                if (dr, dc) == (0, 0):
+                    pass
                 else:
-                    if dc > 0:
-                        trymoves.append((0, 1))
-                    elif dc < 0:
-                        trymoves.append((0, -1))
-                    if dr > 0:
-                        trymoves.append((1, 0))
-                    elif dr < 0:
-                        trymoves.append((-1, 0))
+                    trymoves = []
+                    if abs(dr) > abs(dc):
+                        if dr > 0:
+                            trymoves.append((1, 0))
+                        elif dr < 0:
+                            trymoves.append((-1, 0))
+                        if dc > 0:
+                            trymoves.append((0, 1))
+                        elif dc < 0:
+                            trymoves.append((0, -1))
+                    elif abs(dc) > abs(dr):
+                        if dc > 0:
+                            trymoves.append((0, 1))
+                        elif dc < 0:
+                            trymoves.append((0, -1))
+                        if dr > 0:
+                            trymoves.append((1, 0))
+                        elif dr < 0:
+                            trymoves.append((-1, 0))
+                    elif (rr + cc) % 2 == 0:
+                        if dr > 0:
+                            trymoves.append((1, 0))
+                        elif dr < 0:
+                            trymoves.append((-1, 0))
+                        if dc > 0:
+                            trymoves.append((0, 1))
+                        elif dc < 0:
+                            trymoves.append((0, -1))
+                    else:
+                        if dc > 0:
+                            trymoves.append((0, 1))
+                        elif dc < 0:
+                            trymoves.append((0, -1))
+                        if dr > 0:
+                            trymoves.append((1, 0))
+                        elif dr < 0:
+                            trymoves.append((-1, 0))
 
-                for dr, dc in trymoves:
-                    nrc = Game.validmoveforenemy(level, newstate, newstate.enemies[ii], dr, dc)
-                    if nrc:
-                        newstate.enemies[ii] = nrc
-                        break
+                    for dr, dc in trymoves:
+                        nrc = Game.validmoveforenemy(level, newstate, newstate.enemies[ii], dr, dc)
+                        if nrc:
+                            newstate.enemies[ii] = nrc
+                            break
 
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
@@ -304,7 +308,6 @@ class Game:
                 elif char == '#':
                     state.enemies.append((rr, cc))
                     state.enemyst.append((rr, cc))
-                    state.enemymv.append(0)
                 elif char == '^':
                     state.spikes.append((rr, cc))
                 elif char == '~':
@@ -450,7 +453,6 @@ def solve(levelfile, partial, display, flaw):
         solve_start.spikes = []
         solve_start.enemies = []
         solve_start.enemyst = []
-        solve_start.enemymv = []
 
     solved, info = dosolve(g.level, solve_start, solve_actions)
 
