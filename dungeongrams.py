@@ -247,8 +247,8 @@ class Game:
             
             newrows = []
             for rr, row in enumerate(rows):
-                pref = '@.' if rr == 0 else '..'
-                suff = '.O' if rr + 1 == len(rows) else '..'
+                pref = '@-' if rr == 0 else '--'
+                suff = '-O' if rr + 1 == len(rows) else '--'
                 newrows.append(pref + row + suff)
             rows = newrows
 
