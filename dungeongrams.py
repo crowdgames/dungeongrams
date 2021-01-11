@@ -357,6 +357,9 @@ class Game:
 
 
 
+def completion(level, best_switches, best_cols):
+    return min(0.9, (best_switches + best_cols / level.width) / (level.switchcount + 1.0))
+
 def heur(level, state):
     ret = 0
     ret += ((state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2)**0.5
@@ -364,15 +367,18 @@ def heur(level, state):
         ret += ((state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2)**0.5
     return ret
 
+def compl_guess(level, state):
+    return completion(level, level.switchcount - len(state.switches), state.player[1])
+
 def dosolve(level, state, slow):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
 
     start = state.clone()
     start_tup = start.totuple()
-    start_huer = heur(level, start)
+    start_guess = compl_guess(level, start)
 
     frontier = []
-    heapq.heappush(frontier, (start_huer, start_tup))
+    heapq.heappush(frontier, (0, start_tup))
 
     came_from = {}
     cost_so_far = {}
@@ -380,7 +386,7 @@ def dosolve(level, state, slow):
     cost_so_far[start_tup] = 0
 
     path_found = False
-    best_state_heur = start_huer
+    best_state_guess = start_guess
     best_state_tup = start_tup
 
     while len(frontier) > 0:
@@ -392,7 +398,7 @@ def dosolve(level, state, slow):
 
         if current.player == level.exit:
             path_found = True
-            best_state_heur = 0
+            best_state_guess = 1.0
             best_state_tup = current_tup
             break
 
@@ -411,11 +417,11 @@ def dosolve(level, state, slow):
             if nbr_tup not in cost_so_far or new_cost < cost_so_far[nbr_tup]:
                 cost_so_far[nbr_tup] = new_cost
 
-                h = heur(level, nbr)
-                priority = new_cost + h
+                priority = new_cost + heur(level, nbr)
 
-                if h < best_state_heur:
-                    best_state_heur = h
+                guess = compl_guess(level, nbr)
+                if guess > best_state_guess:
+                    best_state_guess = guess
                     best_state_tup = nbr_tup
 
                 heapq.heappush(frontier, (priority, nbr_tup))
@@ -535,7 +541,7 @@ def percent_playable(levelfile, is_file, partial, flaw):
     if didwin:
         return 1.0
 
-    return min(0.9, (best_switches + best_cols / level.width) / (level.switchcount + 1.0))
+    return completion(level, best_switches, best_cols)
     
 
 
