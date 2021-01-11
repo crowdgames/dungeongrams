@@ -273,7 +273,7 @@ class Game:
         sys.stdout.write('\n')
 
     @staticmethod
-    def load(filename, partial, is_file=True):
+    def load(filename, is_file, partial):
         level = Level()
         state = State()
 
@@ -340,11 +340,11 @@ class Game:
 
 
 
-    def loadself(self, filename, partial, is_file=True):
+    def loadself(self, filename, is_file, partial):
         if self.loaded:
             raise RuntimeError('already loaded')
 
-        self.level, self.state = Game.load(filename, partial, is_file=is_file)
+        self.level, self.state = Game.load(filename, is_file, partial)
         self.loaded = True
 
     def stepself(self, action):
@@ -359,27 +359,33 @@ class Game:
         
         Game.display(self.level, self.state)
 
-        
+
+
+def heur(level, state):
+    ret = 0
+    ret += ((state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2)**0.5
+    for switch in state.switches:
+        ret += ((state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2)**0.5
+    return ret
 
 def dosolve(level, state, solve_actions):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
 
     start = state.clone()
     start_tup = start.totuple()
-    tiebreaker = 0
+    start_huer = heur(level, start)
 
     frontier = []
-    heapq.heappush(frontier, (0, start_tup))
+    heapq.heappush(frontier, (start_huer, start_tup))
 
     came_from = {}
     cost_so_far = {}
     came_from[start_tup] = (None, None)
     cost_so_far[start_tup] = 0
 
-    best_switches = 0
-    best_cols = 0
-
-    path_found = None
+    path_found = False
+    best_state_heur = start_huer
+    best_state_tup = start_tup
 
     while len(frontier) > 0:
         current_tup = heapq.heappop(frontier)[1]
@@ -388,11 +394,10 @@ def dosolve(level, state, solve_actions):
         current_switches = level.switchcount - len(current.switches)
         current_cols = current.player[1] + 1
 
-        best_switches = max(best_switches, current_switches)
-        best_cols = max(best_cols, current_cols)
-
         if current.player == level.exit:
-            path_found = current_tup
+            path_found = True
+            best_state_heur = 0
+            best_state_tup = current_tup
             break
 
         neighbors = set()
@@ -406,62 +411,62 @@ def dosolve(level, state, solve_actions):
             if nbr_tup not in cost_so_far or new_cost < cost_so_far[nbr_tup]:
                 cost_so_far[nbr_tup] = new_cost
 
-                heur = 0
-                heur += ((nbr.player[0] - level.exit[0])**2 + (nbr.player[1] - level.exit[1])**2)**0.5
-                for switch in nbr.switches:
-                    heur += ((nbr.player[0] - switch[0])**2 + (nbr.player[1] - switch[1])**2)**0.5
+                h = heur(level, nbr)
+                priority = new_cost + h
 
-                priority = new_cost + heur
+                if h < best_state_heur:
+                    best_state_heur = h
+                    best_state_tup = nbr_tup
 
                 heapq.heappush(frontier, (priority, nbr_tup))
                 came_from[nbr_tup] = (action, current_tup)
 
-    if path_found is None:
-        return False, (best_switches,  best_cols)
 
-    else:
-        actions = []
-        path = []
+    actions = []
+    path = []
 
-        current_tup = path_found
-        while current_tup is not None:
-            path.append(State.fromtuple(current_tup))
-            action, current_tup = came_from[current_tup]
-            actions.append(action)
-        actions.reverse()
-        actions = actions[1:]
-        path.reverse()
+    current_tup = best_state_tup
+    while current_tup is not None:
+        path.append(State.fromtuple(current_tup))
+        action, current_tup = came_from[current_tup]
+        actions.append(action)
+    actions.reverse()
+    actions = actions[1:]
+    path.reverse()
 
-        # debug check
-        chk_state = state.clone()
-        for ii in range(len(actions)):
-            chk_state = Game.step(level, chk_state, actions[ii])
-            if chk_state.totuple() != path[ii+1].totuple():
-                raise RuntimeError('actions do not follow path')
+    # debug check
+    chk_state = state.clone()
+    for ii in range(len(actions)):
+        chk_state = Game.step(level, chk_state, actions[ii])
+        if chk_state.totuple() != path[ii+1].totuple():
+            raise RuntimeError('actions do not follow path')
 
-        if not chk_state.didwin:
-            raise RuntimeError('actions do not lead to winning state')
+    if path_found and not chk_state.didwin:
+        raise RuntimeError('actions do not lead to winning state but should')
             
-        return True, actions
+    if not path_found and chk_state.didwin:
+        raise RuntimeError('actions lead to winning state but should not')
+
+    return path_found, actions
 
 
 
 
-def play(levelfile, partial):
+def play(levelfile, is_file, partial):
     g = Game()
-    g.loadself(levelfile, partial)
+    g.loadself(levelfile, is_file, partial)
 
     while True:
         g.displayself()
         action = input()
         g.stepself(action)
 
-def solve_with_print(levelfile, partial, display, flaw):
+def solve_and_play(levelfile, is_file, partial, flaw, display):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
     g = Game()
-    g.loadself(levelfile, partial)
+    g.loadself(levelfile, is_file, partial)
 
     solve_actions = ACTIONS
     if flaw == FLAW_NO_SPEED:
@@ -475,61 +480,61 @@ def solve_with_print(levelfile, partial, display, flaw):
         solve_start.enemies = []
         solve_start.enemyst = []
 
-    solved, info = dosolve(g.level, solve_start, solve_actions)
+    solved, actions = dosolve(g.level, solve_start, solve_actions)
 
-    if not solved:
-        best_switches, best_cols = info
-        print('No path found.')
+    best_switches = 0
+    best_cols = 0
+
+    dsp_state = g.state.clone()
+
+    current_switches = g.level.switchcount - len(dsp_state.switches)
+    best_switches = max(best_switches, current_switches)
+    current_cols = dsp_state.player[1] + 1
+    best_cols = max(best_cols, current_cols)
+
+    if display:
+        Game.display(g.level, dsp_state)
+
+    for action in actions:
+        dsp_state = Game.step(g.level, dsp_state, action)
+
+        current_switches = g.level.switchcount - len(dsp_state.switches)
+        best_switches = max(best_switches, current_switches)
+        current_cols = dsp_state.player[1] + 1
+        best_cols = max(best_cols, current_cols)
+
+        if display:
+            print(action)
+            Game.display(g.level, dsp_state)
+
+        if dsp_state.didlose or dsp_state.didwin:
+            break
+
+    if not solved and dsp_state.didwin:
+        raise RuntimeError('no path found but still won')
+
+    if display:
+        if not solved:
+            print('No path found!')
+        elif dsp_state.didlose:
+            print('Lost!')
+        elif dsp_state.didwin:
+            print('Won!')
+
         print('Best switches: %d / %d.' % (best_switches, g.level.switchcount))
         print('Best column: %d / %d.' % (best_cols, g.level.width))
 
-    else:
-        dsp_state = g.state.clone()
-        
-        if display:
-            Game.display(g.level, dsp_state)
+    return dsp_state.didwin, g.level, best_switches, best_cols
 
-        for action in info:
-            dsp_state = Game.step(g.level, dsp_state, action)
-            
-            if display:
-                print(action)
-                Game.display(g.level, dsp_state)
+def percent_playable(levelfile, is_file, partial, flaw):
+    didwin, level, best_switches, best_cols = solve_and_play(levelfile, is_file, partial, flaw, False)
 
-            if dsp_state.didlose:
-                print('Lost!')
-                break
-            elif dsp_state.didwin:
-                print('Won!')
-                break
-
-def percent_playable(levelfile, partial, flaw, is_file=True):
-    if flaw not in FLAWS:
-        raise RuntimeError('unrecognized flaw')
-
-    g = Game()
-    g.loadself(levelfile, partial, is_file=is_file)
-
-    solve_actions = ACTIONS
-    if flaw == FLAW_NO_SPEED:
-        solve_actions = ACTIONS_SLOW
-    
-    solve_start = g.state.clone()
-    if flaw == FLAW_NO_SPIKE:
-        solve_start.spikes = []
-    elif flaw == FLAW_NO_HAZARD:
-        solve_start.spikes = []
-        solve_start.enemies = []
-        solve_start.enemyst = []
-
-    solved, info = dosolve(g.level, solve_start, solve_actions)
-
-    if solved:
+    if didwin:
         return 1.0
 
-    best_switches, best_cols = info
-    return (best_switches + best_cols / g.level.width) / (g.level.switchcount + 1)
+    return min(0.9, (best_switches + best_cols / level.width) / (level.switchcount + 1.0))
     
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DungeonGrams game.')
@@ -537,14 +542,18 @@ if __name__ == '__main__':
     parser.add_argument('--play', action='store_true', help='Play level.')
     parser.add_argument('--partial', action='store_true', help='Add player and exit to partial level.')
     parser.add_argument('--solve', action='store_true', help='Solve level.')
+    parser.add_argument('--playability', action='store_true', help='Calculate level playability value.')
     parser.add_argument('--flaw', type=str, help='Flaw for solver: ' + (', '.join(FLAWS)) + '.', default=FLAW_NO_FLAW)
     args = parser.parse_args()
 
-    if args.play == args.solve:
-        raise RuntimeError('exactly one of --play and --solve must be given')
+    if int(args.play) + int(args.solve) + int(args.playability) != 1:
+        raise RuntimeError('exactly one of --play, --solve, --playability must be given')
 
     if args.play:
-        play(args.levelfile, args.partial)
+        play(args.levelfile, True, args.partial)
 
     elif args.solve:
-        solve_with_print(args.levelfile, args.partial, True, args.flaw)
+        solve_and_play(args.levelfile, True, args.partial, args.flaw, True)
+
+    elif args.playability:
+        print(percent_playable(args.levelfile, True, args.partial, args.flaw))
