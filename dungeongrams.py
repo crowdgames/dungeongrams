@@ -2,7 +2,6 @@ import argparse, heapq, math, pprint, random, sys
 from os.path import isfile
 
 ACTIONS = [ '', 'w', 'a', 's', 'd' ]
-ACTIONS_SLOW = [ 'X', 'wX', 'aX', 'sX', 'dX' ]
 
 FLAW_NO_FLAW = 'no_flaw'
 FLAW_NO_SPIKE = 'no_spike'
@@ -131,15 +130,15 @@ class Game:
         if newstate.didlose:
             return newstate
 
-        if action in ['', 'X']:
+        if action in ['']:
             pdr, pdc = 0, 0
-        elif action in ['w', 'wX']:
+        elif action in ['w']:
             pdr, pdc = -1, 0
-        elif action in ['s', 'sX']:
+        elif action in ['s']:
             pdr, pdc = 1, 0
-        elif action in ['a', 'aX']:
+        elif action in ['a']:
             pdr, pdc = 0, -1
-        elif action in ['d', 'dX']:
+        elif action in ['d']:
             pdr, pdc = 0, 1
         else:
             raise RuntimeError('unrecognized action')
@@ -229,10 +228,7 @@ class Game:
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
 
-        if action in ['X', 'wX', 'sX', 'aX', 'dX']:
-            return Game.step(level, newstate, '')
-        else:
-            return newstate
+        return newstate
 
     @staticmethod
     def display(level, state):
@@ -368,7 +364,7 @@ def heur(level, state):
         ret += ((state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2)**0.5
     return ret
 
-def dosolve(level, state, solve_actions):
+def dosolve(level, state, slow):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
 
     start = state.clone()
@@ -400,8 +396,12 @@ def dosolve(level, state, solve_actions):
             best_state_tup = current_tup
             break
 
+        actions_available = ACTIONS
+        if slow and current.enemymv:
+            actions_available = ['']
+        
         neighbors = set()
-        for action in solve_actions:
+        for action in actions_available:
             neighbors.add((action, Game.step(level, current, action)))
 
         for action, nbr in neighbors:
@@ -468,9 +468,9 @@ def solve_and_play(levelfile, is_file, partial, flaw, display):
     g = Game()
     g.loadself(levelfile, is_file, partial)
 
-    solve_actions = ACTIONS
+    slow = False
     if flaw == FLAW_NO_SPEED:
-        solve_actions = ACTIONS_SLOW
+        slow = True
     
     solve_start = g.state.clone()
     if flaw == FLAW_NO_SPIKE:
@@ -480,7 +480,7 @@ def solve_and_play(levelfile, is_file, partial, flaw, display):
         solve_start.enemies = []
         solve_start.enemyst = []
 
-    solved, actions = dosolve(g.level, solve_start, solve_actions)
+    solved, actions = dosolve(g.level, solve_start, slow)
 
     best_switches = 0
     best_cols = 0
