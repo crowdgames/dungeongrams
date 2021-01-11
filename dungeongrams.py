@@ -487,27 +487,30 @@ def solve_and_play(levelfile, is_file, partial, flaw, display):
 
     dsp_state = g.state.clone()
 
+    if display:
+        Game.display(g.level, dsp_state)
+
     current_switches = g.level.switchcount - len(dsp_state.switches)
     best_switches = max(best_switches, current_switches)
     current_cols = dsp_state.player[1] + 1
     best_cols = max(best_cols, current_cols)
 
-    if display:
-        Game.display(g.level, dsp_state)
-
     for action in actions:
         dsp_state = Game.step(g.level, dsp_state, action)
+
+        if display:
+            print(action)
+            Game.display(g.level, dsp_state)
+
+        if dsp_state.didlose:
+            break
 
         current_switches = g.level.switchcount - len(dsp_state.switches)
         best_switches = max(best_switches, current_switches)
         current_cols = dsp_state.player[1] + 1
         best_cols = max(best_cols, current_cols)
 
-        if display:
-            print(action)
-            Game.display(g.level, dsp_state)
-
-        if dsp_state.didlose or dsp_state.didwin:
+        if dsp_state.didwin:
             break
 
     if not solved and dsp_state.didwin:
