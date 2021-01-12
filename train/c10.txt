@@ -7,5 +7,5 @@ XXX---XXXX----XXXXXXXXXXXXXXX
 ---XXXXX----XXX--------------
 XXXXXXXX---XXXX------XXXXXXXX
 XXX---------------#--XXXXXXXX
-XXX~--#--------------XXXXXXXX
+XXX*--#--------------XXXXXXXX
 XXX------------------XXXXXXXX

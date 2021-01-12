@@ -251,7 +251,7 @@ class Game:
                 elif (rr, cc) in state.spikes:
                     sys.stdout.write('^')
                 elif (rr, cc) in state.switches:
-                    sys.stdout.write('~')
+                    sys.stdout.write('*')
                 elif (rr, cc) == level.exit:
                     if len(state.switches) == 0:
                         sys.stdout.write('O')
@@ -313,7 +313,7 @@ class Game:
                     state.enemyst.append((rr, cc))
                 elif char == '^':
                     state.spikes.append((rr, cc))
-                elif char == '~':
+                elif char == '*':
                     state.switches.append((rr, cc))
                     level.switchcount += 1
                 elif char == '@':

@@ -1,11 +1,11 @@
 --XX-------------XX----------XXX-----------XX------#------XX----------XXX---------
 --XX-------------XX----------XXX-----------XX-------------XX----------XXX---------
---XX---XXX-XXX---XX-----XX---XXX---XX------XX---XXX~XXX---XX-----XX---XXX---XX----
+--XX---XXX-XXX---XX-----XX---XXX---XX------XX---XXX*XXX---XX-----XX---XXX---XX----
 --XX---XXXXXXX---XX---XXXX---XXX---XXXX----XX#--XXXXXXX--#XX---XXXX-#-XXX-#-XXXX--
 --XX---XXXXXXX---XX---XX-----XXX-----XX----XX---XXXXXXX---XX---XX-----XXX-----XX--
 --XX---XXXXXXX---XX---XX---XXXXXXX---XX----XX---XXXXXXX---XX---XX---XXXXXXX---XX--
 --XX-----XXX-----XX---XX---XXXXXXX---XX----XX-----XXX-----XX---XX---XXXXXXX---XX--
 --XXXX---XXX---XXXX---XX---XXXXXXX---XX----XXXX-#-XXX-#-XXXX---XX#--XXXXXXX--#XX--
-----XX---XXX---XX-----XX---XXX-XXX---XX------XX---XXX---XX-----XX---XXX~XXX---XX--
+----XX---XXX---XX-----XX---XXX-XXX---XX------XX---XXX---XX-----XX---XXX*XXX---XX--
 ---------XXX----------XX-------------XX-----------XXX----------XX-------------XX--
 ---------XXX----------XX-------------XX-----------XXX----------XX------#------XX--
