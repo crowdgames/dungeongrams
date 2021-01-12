@@ -325,7 +325,7 @@ class Game:
                         raise RuntimeError('multiple exits found')
                     level.exit = (rr, cc)
                 else:
-                    raise RuntimeError('unrecognized character')
+                    raise RuntimeError(f'unrecognized character: {char}')
 
         if state.player == None:
             raise RuntimeError('no player found')
