@@ -83,13 +83,14 @@ class Game:
         if nc >= level.width:
             return False
 
-        if (nr, nc) in level.blocks:
+        tup = (nr, nc)
+        if tup in level.blocks:
             return False
 
-        if (nr, nc) == level.exit and len(state.switches) > 0:
+        if tup == level.exit and len(state.switches) > 0:
             return False
 
-        return (nr, nc)
+        return tup
 
     @staticmethod
     def validmoveforenemy(level, state, rc, dr, dc):
@@ -98,20 +99,22 @@ class Game:
 
         nr = rc[0] + dr
         nc = rc[1] + dc
+
+        tup = (nr, nc)
         
-        if (nr, nc) == level.exit:
+        if tup == level.exit:
             return False
 
-        if (nr, nc) in state.enemies:
+        if tup in state.enemies:
             return False
 
-        if (nr, nc) in state.spikes:
+        if tup in state.spikes:
             return False
 
-        if (nr, nc) in state.switches:
+        if tup in state.switches:
             return False
 
-        return (nr, nc)
+        return tup
 
     @staticmethod
     def playercollidehazard(level, state):
@@ -178,7 +181,7 @@ class Game:
                 edr = tgrr - err
                 edc = tgcc - ecc
 
-                if (edr, edc) == (0, 0):
+                if edr == 0 and edc == 0:
                     pass
                 else:
                     trymoves = []
@@ -372,10 +375,8 @@ def compl_guess(level, state):
 
 def dosolve(level, state, slow):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
-
     start = state.clone()
     start_tup = start.totuple()
-    start_guess = compl_guess(level, start)
 
     frontier = []
     heapq.heappush(frontier, (0, start_tup))
@@ -386,15 +387,12 @@ def dosolve(level, state, slow):
     cost_so_far[start_tup] = 0
 
     path_found = False
-    best_state_guess = start_guess
+    best_state_guess = 0.0
     best_state_tup = start_tup
 
     while len(frontier) > 0:
         current_tup = heapq.heappop(frontier)[1]
         current = State.fromtuple(current_tup)
-
-        current_switches = level.switchcount - len(current.switches)
-        current_cols = current.player[1] + 1
 
         if current.player == level.exit:
             path_found = True
@@ -406,11 +404,8 @@ def dosolve(level, state, slow):
         if slow and current.enemymv:
             actions_available = ['']
         
-        neighbors = set()
         for action in actions_available:
-            neighbors.add((action, Game.step(level, current, action)))
-
-        for action, nbr in neighbors:
+            nbr = Game.step(level, current, action)
             nbr_tup = nbr.totuple()
 
             new_cost = cost_so_far[current_tup] + 1
@@ -426,7 +421,6 @@ def dosolve(level, state, slow):
 
                 heapq.heappush(frontier, (priority, nbr_tup))
                 came_from[nbr_tup] = (action, current_tup)
-
 
     actions = []
     path = []
