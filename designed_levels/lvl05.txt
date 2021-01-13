@@ -4,8 +4,8 @@
 --XX---XXXXXXX---XX-----^--^---^--
 --XX---XXXXXXX---XX---XXXXXXXXXXX-
 --XX---XXXXXXX---XX----XXXXXXXXX--
---XX----XXXX~---XX------XXXXXXX---
---XXXX---XXX---XXXX---^--XXXXX-#--
-----XX---XXX---XX----^^^--XXX-----
--^--#----XXX--------^^^^^------X--
----------XXX---#-----^^^-----XXXOX
+--XX-----XXX~----XX-----XXXXXXX---
+--XXXX---XXX---XXX----^--XXXXX-#--
+----XX---XXX---XX---^-----XXX-----
+-^--#----XXX----------^--------X--
+---------XXX---#----^---^------XO-
