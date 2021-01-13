@@ -361,14 +361,15 @@ class Game:
 
 
 def completion(level, best_switches, best_cols):
-    return min(0.9, (best_switches + best_cols / level.width) / (level.switchcount + 1.0))
+    return min(0.9, (best_switches + (best_cols / level.width)) / (level.switchcount + 1.0))
 
 def heur(level, state):
-    ret = 0
-    ret += ((state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2)**0.5
+    closest_dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
     for switch in state.switches:
-        ret += ((state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2)**0.5
-    return ret
+        switch_dist_sqr = (state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2
+        closest_dist_sqr = min(closest_dist_sqr, switch_dist_sqr)
+
+    return closest_dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
 
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
