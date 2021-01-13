@@ -361,7 +361,7 @@ class Game:
 
 
 def completion(level, best_switches, best_cols):
-    return min(0.9, (best_switches + (best_cols / level.width)) / (level.switchcount + 1.0))
+    return 0.9 * ((best_switches + (best_cols / level.width)) / (level.switchcount + 1.0))
 
 def heur(level, state):
     closest_dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
