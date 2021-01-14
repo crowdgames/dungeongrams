@@ -335,6 +335,9 @@ class Game:
         if level.exit == None:
             raise RuntimeError('no exit found')
 
+        # sort switches from low to high column, for solve order
+        state.switches = sorted(state.switches, key=lambda x: x[1])
+
         return level, state
 
 
@@ -364,12 +367,12 @@ def completion(level, best_switches, best_cols):
     return 0.9 * ((best_switches + (best_cols / level.width)) / (level.switchcount + 1.0))
 
 def heur(level, state):
-    closest_dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
-    for switch in state.switches:
-        switch_dist_sqr = (state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2
-        closest_dist_sqr = min(closest_dist_sqr, switch_dist_sqr)
-
-    return closest_dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
+    if len(state.switches) == 0:
+        dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
+        return dist_sqr**0.5
+    else:
+        dist_sqr = (state.player[0] - state.switches[0][0])**2 + (state.player[1] - state.switches[0][1])**2
+        return dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
 
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
@@ -407,6 +410,12 @@ def dosolve(level, state, slow):
         
         for action in actions_available:
             nbr = Game.step(level, current, action)
+
+            # only try getting switches in order
+            if len(nbr.switches) != len(current.switches):
+                if nbr.switches != current.switches[1:]:
+                    continue
+            
             nbr_tup = nbr.totuple()
 
             new_cost = cost_so_far[current_tup] + 1
