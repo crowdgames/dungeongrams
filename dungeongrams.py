@@ -400,7 +400,7 @@ def dosolve(level, state, slow):
         current = State.fromtuple(current_tup)
 
         count += 1
-        if count >= 100 * level.width * level.height:
+        if count >= 120 * level.width * level.height:
             break
 
         if current.player == level.exit:
@@ -546,8 +546,6 @@ def percent_playable(levelfile, is_file, partial, flaw):
 
     return completion(level, best_switches, best_cols)
     
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DungeonGrams game.')
     parser.add_argument('levelfile', type=str,help='Input level file.')
