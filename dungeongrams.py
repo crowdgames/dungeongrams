@@ -335,6 +335,9 @@ class Game:
         if level.exit == None:
             raise RuntimeError('no exit found')
 
+        # sort switches from low to high column, for solve order
+        state.switches = sorted(state.switches, key=lambda x: x[1])
+
         return level, state
 
 
@@ -365,13 +368,11 @@ def completion(level, best_switches, best_cols):
 
 def heur(level, state):
     if len(state.switches) == 0:
-        closest_dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
-        return closest_dist_sqr**0.5
+        dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
+        return dist_sqr**0.5
     else:
-        closest_dist_sqr = 1e100
-        for switch in state.switches:
-            closest_dist_sqr = min(closest_dist_sqr, (state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2)
-        return closest_dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
+        dist_sqr = (state.player[0] - state.switches[0][0])**2 + (state.player[1] - state.switches[0][1])**2
+        return dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
 
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
@@ -400,7 +401,7 @@ def dosolve(level, state, slow):
         current = State.fromtuple(current_tup)
 
         count += 1
-        if count >= 120 * level.width * level.height:
+        if count >= 100 * level.width * level.height:
             break
 
         if current.player == level.exit:
@@ -415,6 +416,12 @@ def dosolve(level, state, slow):
         
         for action in actions_available:
             nbr = Game.step(level, current, action)
+
+            # only try getting switches in order
+            if len(nbr.switches) != len(current.switches):
+                if nbr.switches != current.switches[1:]:
+                    continue
+            
             nbr_tup = nbr.totuple()
 
             new_cost = cost_so_far[current_tup] + 1
@@ -546,6 +553,8 @@ def percent_playable(levelfile, is_file, partial, flaw):
 
     return completion(level, best_switches, best_cols)
     
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DungeonGrams game.')
     parser.add_argument('levelfile', type=str,help='Input level file.')
