@@ -539,7 +539,7 @@ def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_so
     return dsp_state.didwin, g.level, best_switches, best_cols
 
 def percent_playable(levelfile, is_file, partial, flaw):
-    didwin, level, best_switches, best_cols = solve_and_play(levelfile, is_file, partial, flaw, False)
+    didwin, level, best_switches, best_cols = solve_and_play(levelfile, is_file, partial, flaw, False, False)
 
     if didwin:
         return 1.0
