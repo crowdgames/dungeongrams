@@ -394,9 +394,15 @@ def dosolve(level, state, slow):
     best_state_guess = 0.0
     best_state_tup = start_tup
 
+    count = 0
+
     while len(frontier) > 0:
         current_tup = heapq.heappop(frontier)[1]
         current = State.fromtuple(current_tup)
+
+        count += 1
+        if count >= 100 * level.width * level.height:
+            break
 
         if current.player == level.exit:
             path_found = True
@@ -471,7 +477,7 @@ def play(levelfile, is_file, partial):
         action = input()
         g.stepself(action)
 
-def solve_and_play(levelfile, is_file, partial, flaw, display):
+def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_solution):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
@@ -497,7 +503,7 @@ def solve_and_play(levelfile, is_file, partial, flaw, display):
 
     dsp_state = g.state.clone()
 
-    if display:
+    if display_states:
         Game.display(g.level, dsp_state)
 
     current_switches = g.level.switchcount - len(dsp_state.switches)
@@ -508,7 +514,7 @@ def solve_and_play(levelfile, is_file, partial, flaw, display):
     for action in actions:
         dsp_state = Game.step(g.level, dsp_state, action)
 
-        if display:
+        if display_states:
             print(action)
             Game.display(g.level, dsp_state)
 
@@ -526,7 +532,7 @@ def solve_and_play(levelfile, is_file, partial, flaw, display):
     if not solved and dsp_state.didwin:
         raise RuntimeError('no path found but still won')
 
-    if display:
+    if display_solution:
         if not solved:
             print('No path found!')
         elif dsp_state.didlose:
@@ -556,6 +562,7 @@ if __name__ == '__main__':
     parser.add_argument('--partial', action='store_true', help='Add player and exit to partial level.')
     parser.add_argument('--solve', action='store_true', help='Solve level.')
     parser.add_argument('--playability', action='store_true', help='Calculate level playability value.')
+    parser.add_argument('--hidestates', action='store_true', help='Hide any solver states that would be displayed.')
     parser.add_argument('--flaw', type=str, help='Flaw for solver: ' + (', '.join(FLAWS)) + '.', default=FLAW_NO_FLAW)
     args = parser.parse_args()
 
@@ -566,7 +573,7 @@ if __name__ == '__main__':
         play(args.levelfile, True, args.partial)
 
     elif args.solve:
-        solve_and_play(args.levelfile, True, args.partial, args.flaw, True)
+        solve_and_play(args.levelfile, True, args.partial, args.flaw, not args.hidestates, True)
 
     elif args.playability:
         print(percent_playable(args.levelfile, True, args.partial, args.flaw))
