@@ -377,7 +377,7 @@ def heur(level, state):
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
 
-def dosolve(level, state, slow):
+def dosolve(level, state, slow, search_depth=100):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
     start = state.clone()
     start_tup = start.totuple()
@@ -401,7 +401,7 @@ def dosolve(level, state, slow):
         current = State.fromtuple(current_tup)
 
         count += 1
-        if count >= 250 * level.width * level.height:
+        if count >= search_depth * level.width * level.height:
             break
 
         if current.player == level.exit:
@@ -477,7 +477,7 @@ def play(levelfile, is_file, partial):
         action = input()
         g.stepself(action)
 
-def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_solution):
+def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_solution, search_depth):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
@@ -496,7 +496,7 @@ def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_so
         solve_start.enemies = []
         solve_start.enemyst = []
 
-    solved, actions = dosolve(g.level, solve_start, slow)
+    solved, actions = dosolve(g.level, solve_start, slow, search_depth=search_depth)
 
     best_switches = 0
     best_cols = 0
@@ -545,8 +545,8 @@ def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_so
 
     return dsp_state.didwin, g.level, best_switches, best_cols
 
-def percent_playable(levelfile, is_file, partial, flaw):
-    didwin, level, best_switches, best_cols = solve_and_play(levelfile, is_file, partial, flaw, False, False)
+def percent_playable(levelfile, is_file, partial, flaw, search_depth):
+    didwin, level, best_switches, best_cols = solve_and_play(levelfile, is_file, partial, flaw, False, False, search_depth)
 
     if didwin:
         return 1.0
