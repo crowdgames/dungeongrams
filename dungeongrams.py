@@ -401,7 +401,7 @@ def dosolve(level, state, slow):
         current = State.fromtuple(current_tup)
 
         count += 1
-        if count >= 100 * level.width * level.height:
+        if count >= 250 * level.width * level.height:
             break
 
         if current.player == level.exit:
