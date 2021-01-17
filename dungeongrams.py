@@ -335,9 +335,6 @@ class Game:
         if level.exit == None:
             raise RuntimeError('no exit found')
 
-        # sort switches from low to high column, for solve order
-        state.switches = sorted(state.switches, key=lambda x: x[1])
-
         return level, state
 
 
@@ -368,16 +365,18 @@ def completion(level, best_switches, best_cols):
 
 def heur(level, state):
     if len(state.switches) == 0:
-        dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
-        return dist_sqr**0.5
+        closest_dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
+        return closest_dist_sqr**0.5
     else:
-        dist_sqr = (state.player[0] - state.switches[0][0])**2 + (state.player[1] - state.switches[0][1])**2
-        return dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
+        closest_dist_sqr = 1e100
+        for switch in state.switches:
+            closest_dist_sqr = min(closest_dist_sqr, (state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2)
+        return closest_dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
 
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
 
-def dosolve(level, state, slow, search_depth=100):
+def dosolve(level, state, slow):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
     start = state.clone()
     start_tup = start.totuple()
@@ -394,16 +393,18 @@ def dosolve(level, state, slow, search_depth=100):
     best_state_guess = 0.0
     best_state_tup = start_tup
 
-    count = 0
+    min_switches = len(start.switches)
 
     while len(frontier) > 0:
         current_tup = heapq.heappop(frontier)[1]
         current = State.fromtuple(current_tup)
 
-        count += 1
-        if count >= search_depth * level.width * level.height:
-            break
-
+	# don't search states that have too many more remaining switches than the best seen so far
+        if len(current.switches) < min_switches:
+            min_switches = len(current.switches)
+        elif len(current.switches) > min_switches + 1:
+            continue
+        
         if current.player == level.exit:
             path_found = True
             best_state_guess = 1.0
@@ -416,12 +417,6 @@ def dosolve(level, state, slow, search_depth=100):
         
         for action in actions_available:
             nbr = Game.step(level, current, action)
-
-            # only try getting switches in order
-            if len(nbr.switches) != len(current.switches):
-                if nbr.switches != current.switches[1:]:
-                    continue
-            
             nbr_tup = nbr.totuple()
 
             new_cost = cost_so_far[current_tup] + 1
@@ -477,7 +472,7 @@ def play(levelfile, is_file, partial):
         action = input()
         g.stepself(action)
 
-def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_solution, search_depth):
+def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_solution):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
@@ -496,7 +491,7 @@ def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_so
         solve_start.enemies = []
         solve_start.enemyst = []
 
-    solved, actions = dosolve(g.level, solve_start, slow, search_depth=search_depth)
+    solved, actions = dosolve(g.level, solve_start, slow)
 
     best_switches = 0
     best_cols = 0
@@ -545,8 +540,8 @@ def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_so
 
     return dsp_state.didwin, g.level, best_switches, best_cols
 
-def percent_playable(levelfile, is_file, partial, flaw, search_depth):
-    didwin, level, best_switches, best_cols = solve_and_play(levelfile, is_file, partial, flaw, False, False, search_depth)
+def percent_playable(levelfile, is_file, partial, flaw):
+    didwin, level, best_switches, best_cols = solve_and_play(levelfile, is_file, partial, flaw, False, False)
 
     if didwin:
         return 1.0
