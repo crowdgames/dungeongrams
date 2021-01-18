@@ -26,6 +26,7 @@ class State:
         self.enemymv = False
         self.spikes = []
         self.switches = []
+        self.exit = None
         self.didwin = False
         self.didlose = False
 
@@ -33,7 +34,7 @@ class State:
         return State.fromtuple(self.totuple())
 
     def totuple(self):
-        return (self.player, tuple(self.enemies), tuple(self.enemyst), self.enemymv, tuple(self.spikes), tuple(self.switches), self.didwin, self.didlose)
+        return (self.player, tuple(self.enemies), tuple(self.enemyst), self.enemymv, tuple(self.spikes), tuple(self.switches), self.exit, self.didwin, self.didlose)
 
     @staticmethod
     def fromtuple(tup):
@@ -44,8 +45,9 @@ class State:
         ret.enemymv = tup[3]
         ret.spikes = list(tup[4])
         ret.switches = list(tup[5])
-        ret.didwin = tup[6]
-        ret.didlose = tup[7]
+        ret.exit = tup[6]
+        ret.didwin = tup[7]
+        ret.didlose = tup[8]
         return ret
 
 
@@ -56,7 +58,6 @@ class Level:
         self.height = 0
 
         self.switchcount = 0
-        self.exit = None
         self.blocks = set()
 
 
@@ -87,7 +88,7 @@ class Game:
         if tup in level.blocks:
             return False
 
-        if tup == level.exit and len(state.switches) > 0:
+        if tup == state.exit and len(state.switches) > 0:
             return False
 
         return tup
@@ -102,7 +103,7 @@ class Game:
 
         tup = (nr, nc)
         
-        if tup == level.exit:
+        if tup == state.exit:
             return False
 
         if tup in state.enemies:
@@ -153,7 +154,7 @@ class Game:
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
             
-        elif newstate.player == level.exit:
+        elif newstate.player == newstate.exit:
             newstate.didwin = True
 
         elif newstate.player in newstate.switches:
@@ -255,7 +256,7 @@ class Game:
                     sys.stdout.write('^')
                 elif (rr, cc) in state.switches:
                     sys.stdout.write('*')
-                elif (rr, cc) == level.exit:
+                elif (rr, cc) == state.exit:
                     if len(state.switches) == 0:
                         sys.stdout.write('O')
                     else:
@@ -324,15 +325,15 @@ class Game:
                         raise RuntimeError('multiple players found')
                     state.player = (rr, cc)
                 elif char == 'O':
-                    if level.exit != None:
+                    if state.exit != None:
                         raise RuntimeError('multiple exits found')
-                    level.exit = (rr, cc)
+                    state.exit = (rr, cc)
                 else:
                     raise RuntimeError(f'unrecognized character: {char}')
 
         if state.player == None:
             raise RuntimeError('no player found')
-        if level.exit == None:
+        if state.exit == None:
             raise RuntimeError('no exit found')
 
         return level, state
@@ -365,7 +366,7 @@ def completion(level, best_switches, best_cols):
 
 def heur(level, state):
     if len(state.switches) == 0:
-        closest_dist_sqr = (state.player[0] - level.exit[0])**2 + (state.player[1] - level.exit[1])**2
+        closest_dist_sqr = (state.player[0] - state.exit[0])**2 + (state.player[1] - state.exit[1])**2
         return closest_dist_sqr**0.5
     else:
         closest_dist_sqr = 1e100
@@ -405,7 +406,7 @@ def dosolve(level, state, slow):
         elif len(current.switches) > min_switches + 1:
             continue
         
-        if current.player == level.exit:
+        if current.player == current.exit:
             path_found = True
             best_state_guess = 1.0
             best_state_tup = current_tup
@@ -472,18 +473,24 @@ def play(levelfile, is_file, partial):
         action = input()
         g.stepself(action)
 
-def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_solution):
-    if flaw not in FLAWS:
-        raise RuntimeError('unrecognized flaw')
 
+
+def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution):
     g = Game()
     g.loadself(levelfile, is_file, partial)
+
+    solved, actions = solve_for_run(g.level, g.state.clone(), flaw)
+    return run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
+
+def solve_for_run(level, state, flaw):
+    if flaw not in FLAWS:
+        raise RuntimeError('unrecognized flaw')
 
     slow = False
     if flaw == FLAW_NO_SPEED:
         slow = True
     
-    solve_start = g.state.clone()
+    solve_start = state.clone()
     if flaw == FLAW_NO_SPIKE:
         solve_start.spikes = []
     elif flaw == FLAW_NO_HAZARD:
@@ -491,32 +498,60 @@ def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_so
         solve_start.enemies = []
         solve_start.enemyst = []
 
-    solved, actions = dosolve(g.level, solve_start, slow)
+    # determine reachable tiles
+    processing = []
+    reachable = set()
+    processing.append(solve_start.player)
+    while len(processing) > 0:
+        curr = processing.pop()
+        if curr in reachable:
+            continue
+        reachable.add(curr)
+        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            rr = curr[0] + dr
+            cc = curr[1] + dc
+            if 0 <= rr and rr < level.height and 0 <= cc and cc < level.width:
+                if (rr, cc) not in level.blocks and (rr, cc) not in solve_start.spikes:
+                    processing.append((rr, cc))
 
+    # move the exit if it's not reachable
+    if solve_start.exit not in reachable:
+        solve_start.exit = max(reachable, key=lambda x: x[1])
+    
+    # remove unreachable switches
+    reachable_switches = []
+    for switch in solve_start.switches:
+        if switch in reachable:
+            reachable_switches.append(switch)
+    solve_start.switches = reachable_switches
+
+    return dosolve(level, solve_start, slow)
+
+def run(level, state, actions, should_solve, display_states, display_solution):
     best_switches = 0
     best_cols = 0
 
-    dsp_state = g.state.clone()
+    dsp_state = state.clone()
 
     if display_states:
-        Game.display(g.level, dsp_state)
+        Game.display(level, dsp_state)
 
-    current_switches = g.level.switchcount - len(dsp_state.switches)
+    current_switches = level.switchcount - len(dsp_state.switches)
     best_switches = max(best_switches, current_switches)
     current_cols = dsp_state.player[1] + 1
     best_cols = max(best_cols, current_cols)
 
     for action in actions:
-        dsp_state = Game.step(g.level, dsp_state, action)
+        dsp_state = Game.step(level, dsp_state, action)
 
         if display_states:
             print(action)
-            Game.display(g.level, dsp_state)
+            Game.display(level, dsp_state)
 
         if dsp_state.didlose:
             break
 
-        current_switches = g.level.switchcount - len(dsp_state.switches)
+        current_switches = level.switchcount - len(dsp_state.switches)
         best_switches = max(best_switches, current_switches)
         current_cols = dsp_state.player[1] + 1
         best_cols = max(best_cols, current_cols)
@@ -524,24 +559,26 @@ def solve_and_play(levelfile, is_file, partial, flaw, display_states, display_so
         if dsp_state.didwin:
             break
 
-    if not solved and dsp_state.didwin:
+    if not should_solve and dsp_state.didwin:
         raise RuntimeError('no path found but still won')
 
     if display_solution:
-        if not solved:
+        if not should_solve:
             print('No path found!')
         elif dsp_state.didlose:
             print('Lost!')
         elif dsp_state.didwin:
             print('Won!')
+        else:
+            print('Didn\'t win or lose!')
 
-        print('Best switches: %d / %d.' % (best_switches, g.level.switchcount))
-        print('Best column: %d / %d.' % (best_cols, g.level.width))
+        print('Best switches: %d / %d.' % (best_switches, level.switchcount))
+        print('Best column: %d / %d.' % (best_cols, level.width))
 
-    return dsp_state.didwin, g.level, best_switches, best_cols
+    return dsp_state.didwin, level, best_switches, best_cols
 
 def percent_playable(levelfile, is_file, partial, flaw):
-    didwin, level, best_switches, best_cols = solve_and_play(levelfile, is_file, partial, flaw, False, False)
+    didwin, level, best_switches, best_cols = solve_and_run(levelfile, is_file, partial, flaw, False, False)
 
     if didwin:
         return 1.0
@@ -568,7 +605,7 @@ if __name__ == '__main__':
         play(args.levelfile, True, args.partial)
 
     elif args.solve:
-        solve_and_play(args.levelfile, True, args.partial, args.flaw, not args.hidestates, True)
+        solve_and_run(args.levelfile, True, args.partial, args.flaw, not args.hidestates, True)
 
     elif args.playability:
         print(percent_playable(args.levelfile, True, args.partial, args.flaw))
