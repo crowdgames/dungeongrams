@@ -21,12 +21,12 @@ ENEMY_RANGE = 3
 class State:
     def __init__(self):
         self.player = None
+        self.exit = None
         self.enemies = []
         self.enemyst = []
         self.enemymv = False
         self.spikes = []
         self.switches = []
-        self.exit = None
         self.didwin = False
         self.didlose = False
 
@@ -34,18 +34,18 @@ class State:
         return State.fromtuple(self.totuple())
 
     def totuple(self):
-        return (self.player, tuple(self.enemies), tuple(self.enemyst), self.enemymv, tuple(self.spikes), tuple(self.switches), self.exit, self.didwin, self.didlose)
+        return (self.player, self.exit, tuple(self.enemies), tuple(self.enemyst), self.enemymv, tuple(self.spikes), tuple(self.switches), self.didwin, self.didlose)
 
     @staticmethod
     def fromtuple(tup):
         ret = State()
         ret.player = tup[0]
-        ret.enemies = list(tup[1])
-        ret.enemyst = list(tup[2])
-        ret.enemymv = tup[3]
-        ret.spikes = list(tup[4])
-        ret.switches = list(tup[5])
-        ret.exit = tup[6]
+        ret.exit = tup[1]
+        ret.enemies = list(tup[2])
+        ret.enemyst = list(tup[3])
+        ret.enemymv = tup[4]
+        ret.spikes = list(tup[5])
+        ret.switches = list(tup[6])
         ret.didwin = tup[7]
         ret.didlose = tup[8]
         return ret
@@ -277,34 +277,28 @@ class Game:
         level = Level()
         state = State()
 
-        rows = []
         if is_file:
+            rows = []
             with open(filename) as level_file:
                 for line in level_file.readlines():
-                    line = line.strip()
-
-                    if level.width == 0:
-                        level.width = len(line)
-                    elif level.width != len(line):
-                        raise RuntimeError('lines not all same length')
-
-                    level.height += 1
-
-                    rows.append(line)
+                    rows.append(line.strip())
         else:
-            rows = filename
-            level.width = len(rows[0])
-            level.height = len(rows)
+            rows = list(filename)
 
         if partial:
-            level.width += 4
-            
             newrows = []
             for rr, row in enumerate(rows):
                 pref = '@-' if rr == 0 else '--'
                 suff = '-O' if rr + 1 == len(rows) else '--'
                 newrows.append(pref + row + suff)
             rows = newrows
+
+        for row in rows:
+            if level.width == 0:
+                level.width = len(row)
+            elif level.width != len(row):
+                raise RuntimeError('rows not all same length')
+        level.height = len(rows)
 
         for rr, row in enumerate(rows):
             for cc, char in enumerate(row):
@@ -377,10 +371,15 @@ def heur(level, state):
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
 
-def dosolve(level, state, slow, debug=True):
+def dosolve(level, state, slow):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
     start = state.clone()
     start_tup = start.totuple()
+
+    if start.exit in start.enemies:
+            raise RuntimeError('enemy starts on exit')
+    if start.exit in start.spikes:
+            raise RuntimeError('spike on exit')
 
     frontier = []
     heapq.heappush(frontier, (0, start_tup))
@@ -447,18 +446,17 @@ def dosolve(level, state, slow, debug=True):
     path.reverse()
 
     # debug check
-    if debug:
-        chk_state = state.clone()
-        for ii in range(len(actions)):
-            chk_state = Game.step(level, chk_state, actions[ii])
-            if chk_state.totuple() != path[ii+1].totuple():
-                raise RuntimeError('actions do not follow path')
+    chk_state = state.clone()
+    for ii in range(len(actions)):
+        chk_state = Game.step(level, chk_state, actions[ii])
+        if chk_state.totuple() != path[ii+1].totuple():
+            raise RuntimeError('actions do not follow path')
 
-        if path_found and not chk_state.didwin:
-            raise RuntimeError('actions do not lead to winning state but should')
-                
-        if not path_found and chk_state.didwin:
-            raise RuntimeError('actions lead to winning state but should not')
+    if path_found and not chk_state.didwin:
+        raise RuntimeError('actions do not lead to winning state but should')
+            
+    if not path_found and chk_state.didwin:
+        raise RuntimeError('actions lead to winning state but should not')
 
     return path_found, actions
 
@@ -476,14 +474,14 @@ def play(levelfile, is_file, partial):
 
 
 
-def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution, debug=True):
+def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution):
     g = Game()
     g.loadself(levelfile, is_file, partial)
 
-    solved, actions = solve_for_run(g.level, g.state.clone(), flaw, debug=debug)
+    solved, actions = solve_for_run(g.level, g.state.clone(), flaw)
     return run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
 
-def solve_for_run(level, state, flaw, debug=True):
+def solve_for_run(level, state, flaw):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
@@ -517,7 +515,9 @@ def solve_for_run(level, state, flaw, debug=True):
 
     # move the exit if it's not reachable
     if solve_start.exit not in reachable:
-        solve_start.exit = max(reachable, key=lambda x: x[1])
+        for rr, cc in reachable:
+            if cc > solve_start.exit[1] and (rr, cc) not in solve_start.enemies:
+                solve_start.exit = (rr, cc)
     
     # remove unreachable switches
     reachable_switches = []
@@ -526,7 +526,7 @@ def solve_for_run(level, state, flaw, debug=True):
             reachable_switches.append(switch)
     solve_start.switches = reachable_switches
 
-    return dosolve(level, solve_start, slow, debug=debug)
+    return dosolve(level, solve_start, slow)
 
 def run(level, state, actions, should_solve, display_states, display_solution):
     best_switches = 0
@@ -578,8 +578,8 @@ def run(level, state, actions, should_solve, display_states, display_solution):
 
     return dsp_state.didwin, level, best_switches, best_cols
 
-def percent_playable(levelfile, is_file, partial, flaw, debug=True):
-    didwin, level, best_switches, best_cols = solve_and_run(levelfile, is_file, partial, flaw, False, False, debug=debug)
+def percent_playable(levelfile, is_file, partial, flaw):
+    didwin, level, best_switches, best_cols = solve_and_run(levelfile, is_file, partial, flaw, False, False)
 
     if didwin:
         return 1.0
