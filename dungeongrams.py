@@ -394,10 +394,15 @@ def dosolve(level, state, slow):
     best_state_tup = start_tup
 
     min_switches = len(start.switches)
+    state_count = 0
 
     while len(frontier) > 0:
         current_tup = heapq.heappop(frontier)[1]
         current = State.fromtuple(current_tup)
+
+        state_count += 1
+        if state_count > 20000000:
+            break
 
 	# don't search states that have too many more remaining switches than the best seen so far
         if len(current.switches) < min_switches:
