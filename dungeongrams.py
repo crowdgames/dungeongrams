@@ -377,7 +377,7 @@ def heur(level, state):
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
 
-def dosolve(level, state, slow):
+def dosolve(level, state, slow, debug=True):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
     start = state.clone()
     start_tup = start.totuple()
@@ -447,17 +447,18 @@ def dosolve(level, state, slow):
     path.reverse()
 
     # debug check
-    chk_state = state.clone()
-    for ii in range(len(actions)):
-        chk_state = Game.step(level, chk_state, actions[ii])
-        if chk_state.totuple() != path[ii+1].totuple():
-            raise RuntimeError('actions do not follow path')
+    if debug:
+        chk_state = state.clone()
+        for ii in range(len(actions)):
+            chk_state = Game.step(level, chk_state, actions[ii])
+            if chk_state.totuple() != path[ii+1].totuple():
+                raise RuntimeError('actions do not follow path')
 
-    if path_found and not chk_state.didwin:
-        raise RuntimeError('actions do not lead to winning state but should')
-            
-    if not path_found and chk_state.didwin:
-        raise RuntimeError('actions lead to winning state but should not')
+        if path_found and not chk_state.didwin:
+            raise RuntimeError('actions do not lead to winning state but should')
+                
+        if not path_found and chk_state.didwin:
+            raise RuntimeError('actions lead to winning state but should not')
 
     return path_found, actions
 
@@ -475,14 +476,14 @@ def play(levelfile, is_file, partial):
 
 
 
-def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution):
+def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution, debug=True):
     g = Game()
     g.loadself(levelfile, is_file, partial)
 
-    solved, actions = solve_for_run(g.level, g.state.clone(), flaw)
+    solved, actions = solve_for_run(g.level, g.state.clone(), flaw, debug=debug)
     return run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
 
-def solve_for_run(level, state, flaw):
+def solve_for_run(level, state, flaw, debug=True):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
@@ -525,7 +526,7 @@ def solve_for_run(level, state, flaw):
             reachable_switches.append(switch)
     solve_start.switches = reachable_switches
 
-    return dosolve(level, solve_start, slow)
+    return dosolve(level, solve_start, slow, debug=debug)
 
 def run(level, state, actions, should_solve, display_states, display_solution):
     best_switches = 0
@@ -577,8 +578,8 @@ def run(level, state, actions, should_solve, display_states, display_solution):
 
     return dsp_state.didwin, level, best_switches, best_cols
 
-def percent_playable(levelfile, is_file, partial, flaw):
-    didwin, level, best_switches, best_cols = solve_and_run(levelfile, is_file, partial, flaw, False, False)
+def percent_playable(levelfile, is_file, partial, flaw, debug=True):
+    didwin, level, best_switches, best_cols = solve_and_run(levelfile, is_file, partial, flaw, False, False, debug=debug)
 
     if didwin:
         return 1.0
