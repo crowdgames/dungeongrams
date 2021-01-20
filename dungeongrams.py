@@ -520,9 +520,12 @@ def solve_for_run(level, state, flaw):
 
     # move the exit if it's not reachable
     if solve_start.exit not in reachable:
+        solve_start.exit = solve_start.player
         for rr, cc in reachable:
             if cc > solve_start.exit[1] and (rr, cc) not in solve_start.enemies:
                 solve_start.exit = (rr, cc)
+        if solve_start.exit == solve_start.player:
+            solve_start.didwin = True
     
     # remove unreachable switches
     reachable_switches = []
