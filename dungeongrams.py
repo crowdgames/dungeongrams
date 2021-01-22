@@ -393,6 +393,7 @@ def dosolve(level, state, slow):
     best_state_guess = 0.0
     best_state_tup = start_tup
 
+    max_state_count = level.width * level.height * 5000
     min_switches = len(start.switches)
     state_count = 0
 
@@ -401,10 +402,10 @@ def dosolve(level, state, slow):
         current = State.fromtuple(current_tup)
 
         state_count += 1
-        if state_count > 20000000:
+        if state_count > max_state_count:
             break
 
-	# don't search states that have too many more remaining switches than the best seen so far
+	    # don't search states that have too many more remaining switches than the best seen so far
         if len(current.switches) < min_switches:
             min_switches = len(current.switches)
         elif len(current.switches) > min_switches + 1:
