@@ -389,7 +389,6 @@ def dosolve(level, state, slow):
     came_from[start_tup] = (None, None)
     cost_so_far[start_tup] = 0
 
-    path_found = False
     best_state_guess = 0.0
     best_state_tup = start_tup
 
@@ -416,8 +415,7 @@ def dosolve(level, state, slow):
         elif len(current.switches) > min_switches + 1:
             continue
         
-        if current.player == current.exit:
-            path_found = True
+        if current.didwin:
             best_state_guess = 1.0
             best_state_tup = current_tup
             break
@@ -447,6 +445,8 @@ def dosolve(level, state, slow):
     actions = []
     path = []
 
+    path_found = State.fromtuple(best_state_tup).didwin
+
     current_tup = best_state_tup
     while current_tup is not None:
         path.append(State.fromtuple(current_tup))
@@ -462,6 +462,9 @@ def dosolve(level, state, slow):
         chk_state = Game.step(level, chk_state, actions[ii])
         if chk_state.totuple() != path[ii+1].totuple():
             raise RuntimeError('actions do not follow path')
+
+    if chk_state.totuple() != best_state_tup:
+        raise RuntimeError('actions do not lead to ending state')
 
     if path_found and not chk_state.didwin:
         raise RuntimeError('actions do not lead to winning state but should')
