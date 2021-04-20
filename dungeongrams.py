@@ -25,7 +25,6 @@ class State:
         self.enemies = []
         self.enemyst = []
         self.enemymv = False
-        self.spikes = []
         self.switches = []
         self.didwin = False
         self.didlose = False
@@ -34,7 +33,7 @@ class State:
         return State.fromtuple(self.totuple())
 
     def totuple(self):
-        return (self.player, self.exit, tuple(self.enemies), tuple(self.enemyst), self.enemymv, tuple(self.spikes), tuple(self.switches), self.didwin, self.didlose)
+        return (self.player, self.exit, tuple(self.enemies), tuple(self.enemyst), self.enemymv, tuple(self.switches), self.didwin, self.didlose)
 
     @staticmethod
     def fromtuple(tup):
@@ -44,10 +43,9 @@ class State:
         ret.enemies = list(tup[2])
         ret.enemyst = list(tup[3])
         ret.enemymv = tup[4]
-        ret.spikes = list(tup[5])
-        ret.switches = list(tup[6])
-        ret.didwin = tup[7]
-        ret.didlose = tup[8]
+        ret.switches = list(tup[5])
+        ret.didwin = tup[6]
+        ret.didlose = tup[7]
         return ret
 
 
@@ -59,6 +57,7 @@ class Level:
 
         self.switchcount = 0
         self.blocks = set()
+        self.spikes = set()
 
 
 
@@ -109,7 +108,7 @@ class Game:
         if tup in state.enemies:
             return False
 
-        if tup in state.spikes:
+        if tup in level.spikes:
             return False
 
         if tup in state.switches:
@@ -121,7 +120,7 @@ class Game:
     def playercollidehazard(level, state):
         if state.player in state.enemies:
             return True
-        if state.player in state.spikes:
+        if state.player in level.spikes:
             return True
         return False
 
@@ -252,7 +251,7 @@ class Game:
                         sys.stdout.write('@')
                 elif (rr, cc) in state.enemies:
                     sys.stdout.write('#')
-                elif (rr, cc) in state.spikes:
+                elif (rr, cc) in level.spikes:
                     sys.stdout.write('^')
                 elif (rr, cc) in state.switches:
                     sys.stdout.write('*')
@@ -310,7 +309,7 @@ class Game:
                     state.enemies.append((rr, cc))
                     state.enemyst.append((rr, cc))
                 elif char == '^':
-                    state.spikes.append((rr, cc))
+                    level.spikes.add((rr, cc))
                 elif char == '*':
                     state.switches.append((rr, cc))
                     level.switchcount += 1
@@ -378,7 +377,7 @@ def dosolve(level, state, slow):
 
     if start.exit in start.enemies:
             raise RuntimeError('enemy starts on exit')
-    if start.exit in start.spikes:
+    if start.exit in level.spikes:
             raise RuntimeError('spike on exit')
 
     frontier = []
@@ -505,9 +504,11 @@ def solve_for_run(level, state, flaw):
     
     solve_start = state.clone()
     if flaw == FLAW_NO_SPIKE:
-        solve_start.spikes = []
+        raise RuntimeError('floaw not currently supported')
+        #solve_start.spikes = set()
     elif flaw == FLAW_NO_HAZARD:
-        solve_start.spikes = []
+        raise RuntimeError('floaw not currently supported')
+        #solve_start.spikes = set()
         solve_start.enemies = []
         solve_start.enemyst = []
 
@@ -524,7 +525,7 @@ def solve_for_run(level, state, flaw):
             rr = curr[0] + dr
             cc = curr[1] + dc
             if 0 <= rr and rr < level.height and 0 <= cc and cc < level.width:
-                if (rr, cc) not in level.blocks and (rr, cc) not in solve_start.spikes:
+                if (rr, cc) not in level.blocks and (rr, cc) not in level.spikes:
                     processing.append((rr, cc))
 
     # move the exit if it's not reachable
