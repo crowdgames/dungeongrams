@@ -23,7 +23,6 @@ class State:
         self.player = None
         self.exit = None
         self.enemies = []
-        self.enemyst = []
         self.enemymv = False
         self.switches = []
         self.didwin = False
@@ -33,7 +32,7 @@ class State:
         return State.fromtuple(self.totuple())
 
     def totuple(self):
-        return (self.player, self.exit, tuple(self.enemies), tuple(self.enemyst), self.enemymv, tuple(self.switches), self.didwin, self.didlose)
+        return (self.player, self.exit, tuple(self.enemies), self.enemymv, tuple(self.switches), self.didwin, self.didlose)
 
     @staticmethod
     def fromtuple(tup):
@@ -41,11 +40,10 @@ class State:
         ret.player = tup[0]
         ret.exit = tup[1]
         ret.enemies = list(tup[2])
-        ret.enemyst = list(tup[3])
-        ret.enemymv = tup[4]
-        ret.switches = list(tup[5])
-        ret.didwin = tup[6]
-        ret.didlose = tup[7]
+        ret.enemymv = tup[3]
+        ret.switches = list(tup[4])
+        ret.didwin = tup[5]
+        ret.didlose = tup[6]
         return ret
 
 
@@ -58,6 +56,7 @@ class Level:
         self.switchcount = 0
         self.blocks = set()
         self.spikes = set()
+        self.enemyst = []
 
 
 
@@ -166,7 +165,7 @@ class Game:
             newstate.enemymv = False
             
             for ii in range(len(newstate.enemies)):
-                strr, stcc = newstate.enemyst[ii]
+                strr, stcc = level.enemyst[ii]
                 stdr = newstate.player[0] - strr
                 stdc = newstate.player[1] - stcc
 
@@ -174,8 +173,8 @@ class Game:
                     tgrr = newstate.player[0]
                     tgcc = newstate.player[1]
                 else:
-                    tgrr = newstate.enemyst[ii][0]
-                    tgcc = newstate.enemyst[ii][1]
+                    tgrr = level.enemyst[ii][0]
+                    tgcc = level.enemyst[ii][1]
                     
                 err, ecc = newstate.enemies[ii]
                 edr = tgrr - err
@@ -307,7 +306,7 @@ class Game:
                     level.blocks.add((rr, cc))
                 elif char == '#':
                     state.enemies.append((rr, cc))
-                    state.enemyst.append((rr, cc))
+                    level.enemyst.append((rr, cc))
                 elif char == '^':
                     level.spikes.add((rr, cc))
                 elif char == '*':
@@ -509,8 +508,8 @@ def solve_for_run(level, state, flaw):
     elif flaw == FLAW_NO_HAZARD:
         raise RuntimeError('floaw not currently supported')
         #solve_start.spikes = set()
-        solve_start.enemies = []
-        solve_start.enemyst = []
+        #solve_start.enemies = []
+        #solve_start.enemyst = []
 
     # determine reachable tiles
     processing = []
