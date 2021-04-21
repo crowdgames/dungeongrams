@@ -29,7 +29,15 @@ class State:
         self.didlose = False
 
     def clone(self):
-        return State.fromtuple(self.totuple())
+        ret = State()
+        ret.player = self.player
+        ret.exit = self.exit
+        ret.enemies = list(self.enemies)
+        ret.enemymv = self.enemymv
+        ret.switches = list(self.switches)
+        ret.didwin = self.didwin
+        ret.didlose = self.didlose
+        return ret
 
     def totuple(self):
         return (self.player, self.exit, tuple(self.enemies), self.enemymv, tuple(self.switches), self.didwin, self.didlose)
@@ -380,7 +388,7 @@ def dosolve(level, state, slow):
             raise RuntimeError('spike on exit')
 
     frontier = []
-    heapq.heappush(frontier, (0, start_tup))
+    heapq.heappush(frontier, (0, start_tup, start))
 
     came_from = {}
     cost_so_far = {}
@@ -394,8 +402,7 @@ def dosolve(level, state, slow):
     state_count = 0
 
     while len(frontier) > 0:
-        current_tup = heapq.heappop(frontier)[1]
-        current = State.fromtuple(current_tup)
+        current_pri, current_tup, current = heapq.heappop(frontier)
 
         # only keep most promising states
         while len(frontier) > 1000:
@@ -437,7 +444,7 @@ def dosolve(level, state, slow):
                     best_state_guess = guess
                     best_state_tup = nbr_tup
 
-                heapq.heappush(frontier, (priority, nbr_tup))
+                heapq.heappush(frontier, (priority, nbr_tup, nbr))
                 came_from[nbr_tup] = (action, current_tup)
 
     actions = []
