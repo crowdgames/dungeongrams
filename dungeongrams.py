@@ -399,11 +399,6 @@ def dosolve(level, state, slow):
         current_tup = heapq.heappop(frontier)[1]
         current = State.fromtuple(current_tup)
 
-        # only keep most promising states
-        while len(frontier) > 1000:
-            frontier.remove(max(frontier))
-            heapq.heapify(frontier)
-
         # stop after checking too many states
         state_count += 1
         if state_count > 100 * level.width * level.height:
