@@ -1,7 +1,9 @@
+use std::ops::Add;
+
 #[derive(Clone)]
 pub struct Point {
-    x: u8,
-    y: u8
+    pub x: u8,
+    pub y: u8
 }
 
 impl Point {
@@ -10,6 +12,8 @@ impl Point {
     }
 }
 
+
+// Equality
 impl PartialEq for Point {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
@@ -17,3 +21,12 @@ impl PartialEq for Point {
 }
 
 impl Eq for Point {}
+
+// p1 + p2 overloading
+impl Add for Point {
+    type Output = Point;
+
+    fn add(self, other: Point) -> Point {
+        Point { x: self.x + other.x, y: self.y + other.y }
+    }
+}

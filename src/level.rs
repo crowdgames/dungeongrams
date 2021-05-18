@@ -7,3 +7,14 @@ pub struct Level {
     switch_count: u8,
     blocks: HashSet<Point>
 }
+
+impl Level {
+    pub fn new() -> Self {
+        Self {
+            width: 0,
+            height: 0,
+            switch_count: 0,
+            blocks: HashSet::new()
+        }
+    }
+}

@@ -15,10 +15,10 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(player: Point, exit: Point) -> Self {
+    pub fn new() -> Self {
         Self {
-            player: player,
-            exit: exit,
+            player: Point::new(0,0),
+            exit: Point::new(0,0),
             enemies: Vec::new(),
             enemies_origin: Vec::new(),
             enemies_move: false,
