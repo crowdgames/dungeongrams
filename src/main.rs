@@ -3,6 +3,7 @@ mod point;
 mod utility;
 mod level;
 mod state;
+mod game;
 
 use state::State;
 use point::Point;

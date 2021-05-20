@@ -1,13 +1,13 @@
 use std::ops::Add;
 
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub struct Point {
-    pub x: u8,
-    pub y: u8
+    pub x: i8,
+    pub y: i8
 }
 
 impl Point {
-    pub fn new(x: u8, y: u8) -> Self {
+    pub fn new(x: i8, y: i8) -> Self {
         Self {x, y}
     }
 }
