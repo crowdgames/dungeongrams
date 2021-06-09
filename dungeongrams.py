@@ -1,4 +1,5 @@
 import argparse, heapq, math, pprint, random, sys
+from collections import namedtuple
 from os.path import isfile
 
 ACTIONS = [ '', 'w', 'a', 's', 'd' ]
@@ -16,7 +17,14 @@ FLAWS = [
 
 ENEMY_RANGE = 3
 
+Position = namedtuple('Position', ['row', 'col'])
+Modification = namedtuple('Modification', ['type', 'pos'])
+MOD_SPIKE = 0
+MOD_BLOCK = 1
+MOD_ENEMY = 2
 
+MOD_COST = 10
+MOD_COST = 1 
 
 class State:
     def __init__(self):
@@ -78,50 +86,42 @@ class Game:
 
 
     @staticmethod
-    def validmoveforplayer(level, state, rc, dr, dc):
-        nr = rc[0] + dr
-        nc = rc[1] + dc
-        if nr < 0:
+    def validmoveforplayer(level, state, pos):
+        if pos.row < 0:
             return False
-        if nc < 0:
+        if pos.col < 0:
             return False
-        if nr >= level.height:
+        if pos.row >= level.height:
             return False
-        if nc >= level.width:
+        if pos.col >= level.width:
             return False
 
-        tup = (nr, nc)
-        if tup in level.blocks:
+        if pos in level.blocks:
             return False
 
-        if tup == state.exit and len(state.switches) > 0:
+        if pos == state.exit and len(state.switches) > 0:
             return False
 
-        return tup
+        return True
 
     @staticmethod
-    def validmoveforenemy(level, state, rc, dr, dc):
-        if not Game.validmoveforplayer(level, state, rc, dr, dc):
+    def validmoveforenemy(level, state, pos):
+        if not Game.validmoveforplayer(level, state, pos):
             return False
 
-        nr = rc[0] + dr
-        nc = rc[1] + dc
-
-        tup = (nr, nc)
-        
-        if tup == state.exit:
+        if pos == state.exit:
             return False
 
-        if tup in state.enemies:
+        if pos in state.enemies:
             return False
 
-        if tup in level.spikes:
+        if pos in level.spikes:
             return False
 
-        if tup in state.switches:
+        if pos in state.switches:
             return False
 
-        return tup
+        return pos
 
     @staticmethod
     def playercollidehazard(level, state):
@@ -132,13 +132,14 @@ class Game:
         return False
 
     @staticmethod
-    def step(level, state, action):
+    def step(level, state, action, allow_mod=False):
         newstate = state.clone()
+        mod = None
 
         if newstate.didwin:
-            return newstate
+            return newstate, mod
         if newstate.didlose:
-            return newstate
+            return newstate, mod
 
         if action in ['']:
             pdr, pdc = 0, 0
@@ -153,9 +154,25 @@ class Game:
         else:
             raise RuntimeError('unrecognized action')
 
-        pnrc = Game.validmoveforplayer(level, newstate, newstate.player, pdr, pdc)
-        if pnrc:
-            newstate.player = pnrc
+            #  and new_player_pos.row >= 0 and new_player_pos.col >= 0 and \
+            # new_player_pos.row < level.height and new_player_pos.col < level.width
+
+        new_player_pos = Position(newstate.player[0] + pdr, newstate.player[1] + pdc)
+        
+        if Game.validmoveforplayer(level, newstate, new_player_pos):
+            newstate.player = new_player_pos
+        elif allow_mod:
+            if new_player_pos in level.blocks:
+                mod = Modification(MOD_BLOCK, new_player_pos)
+                newstate.player = new_player_pos
+            elif new_player_pos in level.spikes:
+                mod = Modification(MOD_SPIKE, new_player_pos)
+                newstate.player = new_player_pos
+            elif new_player_pos in state.enemies:
+                mod = Modification(MOD_ENEMY, new_player_pos)
+                newstate.player = new_player_pos
+
+            # otherwise, the position is out of bounds and we continue to the rest of the function
 
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
@@ -166,7 +183,6 @@ class Game:
         elif newstate.player in newstate.switches:
             del newstate.switches[newstate.switches.index(newstate.player)]
 
-        
         if not newstate.enemymv:
             newstate.enemymv = True
         else:
@@ -230,15 +246,15 @@ class Game:
                             trymoves.append((-1, 0))
 
                     for edr, edc in trymoves:
-                        enrc = Game.validmoveforenemy(level, newstate, newstate.enemies[ii], edr, edc)
-                        if enrc:
-                            newstate.enemies[ii] = enrc
+                        new_position = Position(newstate.enemies[ii][0] + edr, newstate.enemies[ii][1] + edc)
+                        if Game.validmoveforenemy(level, newstate, new_position):
+                            newstate.enemies[ii] = new_position
                             break
 
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
 
-        return newstate
+        return newstate, mod
 
     @staticmethod
     def display(level, state):
@@ -311,14 +327,14 @@ class Game:
                 if char == '-':
                     pass
                 elif char == 'X':
-                    level.blocks.add((rr, cc))
+                    level.blocks.add(Position(rr, cc))
                 elif char == '#':
-                    state.enemies.append((rr, cc))
-                    level.enemyst.append((rr, cc))
+                    state.enemies.append(Position(rr, cc))
+                    level.enemyst.append(Position(rr, cc))
                 elif char == '^':
-                    level.spikes.add((rr, cc))
+                    level.spikes.add(Position(rr, cc))
                 elif char == '*':
-                    state.switches.append((rr, cc))
+                    state.switches.append(Position(rr, cc))
                     level.switchcount += 1
                 elif char == '@':
                     if state.player != None:
@@ -351,7 +367,7 @@ class Game:
         if not self.loaded:
             raise RuntimeError('not loaded')
         
-        self.state = Game.step(self.level, self.state, action)
+        self.state, _ = Game.step(self.level, self.state, action)
 
     def displayself(self):
         if not self.loaded:
@@ -377,22 +393,22 @@ def heur(level, state):
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
 
-def dosolve(level, state, slow):
+def dosolve(level, state, slow, allow_mod=False):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
     start = state.clone()
     start_tup = start.totuple()
 
     if start.exit in start.enemies:
-            raise RuntimeError('enemy starts on exit')
+        raise RuntimeError('enemy starts on exit')
     if start.exit in level.spikes:
-            raise RuntimeError('spike on exit')
+        raise RuntimeError('spike on exit')
 
     frontier = []
     heapq.heappush(frontier, (0, start_tup, start))
 
     came_from = {}
     cost_so_far = {}
-    came_from[start_tup] = (None, None)
+    came_from[start_tup] = (None, None, None)
     cost_so_far[start_tup] = 0
 
     best_state_guess = 0.0
@@ -401,15 +417,16 @@ def dosolve(level, state, slow):
     min_switches = len(start.switches)
     state_count = 0
 
+    print('WARNING: put back in the state_count limit that is commented out.')
     while len(frontier) > 0:
         current_pri, current_tup, current = heapq.heappop(frontier)
 
         # stop after checking too many states
         state_count += 1
-        if state_count > 100 * level.width * level.height:
-            break
+        # if state_count > 100 * level.width * level.height:
+        #     break
 
-	# don't search states that have too many more remaining switches than the best seen so far
+        # don't search states that have too many more remaining switches than the best seen so far
         if len(current.switches) < min_switches:
             min_switches = len(current.switches)
         elif len(current.switches) > min_switches + 1:
@@ -418,6 +435,7 @@ def dosolve(level, state, slow):
         if current.didwin:
             best_state_guess = 1.0
             best_state_tup = current_tup
+            print('won!')
             break
 
         actions_available = ACTIONS
@@ -425,10 +443,14 @@ def dosolve(level, state, slow):
             actions_available = ['']
         
         for action in actions_available:
-            nbr = Game.step(level, current, action)
+            nbr, mod = Game.step(level, current, action, allow_mod=allow_mod)
             nbr_tup = nbr.totuple()
 
-            new_cost = cost_so_far[current_tup] + 1
+            if mod in [None]:
+                new_cost = cost_so_far[current_tup] + 1
+            else:
+                new_cost = cost_so_far[current_tup] + MOD_COST
+
             if nbr_tup not in cost_so_far or new_cost < cost_so_far[nbr_tup]:
                 cost_so_far[nbr_tup] = new_cost
 
@@ -440,8 +462,9 @@ def dosolve(level, state, slow):
                     best_state_tup = nbr_tup
 
                 heapq.heappush(frontier, (priority, nbr_tup, nbr))
-                came_from[nbr_tup] = (action, current_tup)
+                came_from[nbr_tup] = (action, current_tup, mod)
 
+    modifications = []
     actions = []
     path = []
 
@@ -450,30 +473,33 @@ def dosolve(level, state, slow):
     current_tup = best_state_tup
     while current_tup is not None:
         path.append(State.fromtuple(current_tup))
-        action, current_tup = came_from[current_tup]
+        action, current_tup, mod = came_from[current_tup]
         actions.append(action)
+        if mod not in [None]:
+            modifications.append(mod)
+    
     actions.reverse()
     actions = actions[1:]
     path.reverse()
+    print('modifications:', modifications)
 
     # debug check
-    chk_state = state.clone()
-    for ii in range(len(actions)):
-        chk_state = Game.step(level, chk_state, actions[ii])
-        if chk_state.totuple() != path[ii+1].totuple():
-            raise RuntimeError('actions do not follow path')
+    # chk_state = state.clone()
+    # for ii in range(len(actions)):
+    #     chk_state, _ = Game.step(level, chk_state, actions[ii])
+    #     if chk_state.totuple() != path[ii+1].totuple():
+    #         raise RuntimeError('actions do not follow path')
 
-    if chk_state.totuple() != best_state_tup:
-        raise RuntimeError('actions do not lead to ending state')
+    # if chk_state.totuple() != best_state_tup:
+    #     raise RuntimeError('actions do not lead to ending state')
 
-    if path_found and not chk_state.didwin:
-        raise RuntimeError('actions do not lead to winning state but should')
+    # if path_found and not chk_state.didwin:
+    #     raise RuntimeError('actions do not lead to winning state but should')
             
-    if not path_found and chk_state.didwin:
-        raise RuntimeError('actions lead to winning state but should not')
+    # if not path_found and chk_state.didwin:
+    #     raise RuntimeError('actions lead to winning state but should not')
 
-    return path_found, actions
-
+    return path_found, actions, modifications
 
 
 
@@ -487,15 +513,35 @@ def play(levelfile, is_file, partial):
         g.stepself(action)
 
 
+def repair(levelfile, is_file, partial, display_states, display_solution):
+    g = Game()
+    g.loadself(levelfile, is_file, partial)
+    modifications = [None]
+    while len(modifications) > 0:
+        solved, actions, modifications = dosolve(g.level, g.state.clone(), False, allow_mod=True)
+        print(modifications)
+        for mod in modifications:
+            if mod.type == MOD_BLOCK:
+                g.level.blocks.remove(mod.pos)
+            elif mod.type == MOD_SPIKE:
+                g.level.spikes.remove(mod.pos)
+            elif mod.type == MOD_ENEMY:
+                g.state.enemies = [pos for pos in g.state.enemies if pos == mod.pos]
+            else:
+                raise TypeError(f'Unrecognized modification type ({mod.type}) for position {mod.pos}')
+    
+    run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
+
+    # I need to take state and level get a string out of that.
 
 def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution):
     g = Game()
     g.loadself(levelfile, is_file, partial)
 
-    solved, actions = solve_for_run(g.level, g.state.clone(), flaw)
+    solved, actions, _ = solve_for_run(g.level, g.state.clone(), flaw,)
     return run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
 
-def solve_for_run(level, state, flaw):
+def solve_for_run(level, state, flaw, allow_mod=False):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
@@ -517,12 +563,14 @@ def solve_for_run(level, state, flaw):
     processing = []
     reachable = set()
     processing.append(solve_start.player)
+    DIRECTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
     while len(processing) > 0:
         curr = processing.pop()
         if curr in reachable:
             continue
         reachable.add(curr)
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        for dr, dc in DIRECTIONS:
             rr = curr[0] + dr
             cc = curr[1] + dc
             if 0 <= rr and rr < level.height and 0 <= cc and cc < level.width:
@@ -545,7 +593,7 @@ def solve_for_run(level, state, flaw):
             reachable_switches.append(switch)
     solve_start.switches = reachable_switches
 
-    return dosolve(level, solve_start, slow)
+    return dosolve(level, solve_start, slow, allow_mod=allow_mod)
 
 def run(level, state, actions, should_solve, display_states, display_solution):
     best_switches = 0
@@ -562,7 +610,7 @@ def run(level, state, actions, should_solve, display_states, display_solution):
     best_cols = max(best_cols, current_cols)
 
     for action in actions:
-        dsp_state = Game.step(level, dsp_state, action)
+        dsp_state, _ = Game.step(level, dsp_state, action)
 
         if display_states:
             print(action)
@@ -612,14 +660,13 @@ if __name__ == '__main__':
     parser.add_argument('levelfile', type=str,help='Input level file.')
     parser.add_argument('--play', action='store_true', help='Play level.')
     parser.add_argument('--partial', action='store_true', help='Add player and exit to partial level.')
-    parser.add_argument('--solve', action='store_true', help='Solve level.')
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument('--solve', action='store_true', help='Solve level.')
+    group.add_argument('--repair', action='store_true', help='Repair level.')
     parser.add_argument('--playability', action='store_true', help='Calculate level playability value.')
     parser.add_argument('--hidestates', action='store_true', help='Hide any solver states that would be displayed.')
     parser.add_argument('--flaw', type=str, help='Flaw for solver: ' + (', '.join(FLAWS)) + '.', default=FLAW_NO_FLAW)
     args = parser.parse_args()
-
-    if int(args.play) + int(args.solve) + int(args.playability) != 1:
-        raise RuntimeError('exactly one of --play, --solve, --playability must be given')
 
     if args.play:
         play(args.levelfile, True, args.partial)
@@ -627,5 +674,13 @@ if __name__ == '__main__':
     elif args.solve:
         solve_and_run(args.levelfile, True, args.partial, args.flaw, not args.hidestates, True)
 
+    elif args.repair:
+        repair(args.levelfile, True, args.partial, not args.hidestates, True)
+
     elif args.playability:
         print(percent_playable(args.levelfile, True, args.partial, args.flaw))
+
+    else:
+        parser.print_help()
+
+
