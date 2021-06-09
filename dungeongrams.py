@@ -531,8 +531,19 @@ def repair(levelfile, is_file, partial, display_states, display_solution):
     if display_states or display_solution:
         run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
 
+    level = [['-' for _ in range(g.level.width)] for _ in range(g.level.height)]
+    for enemy in g.level.enemyst:
+        level[enemy.row][enemy.col] = '#'
 
-    # I need to take state and level get a string out of that.
+    for block in g.level.blocks:
+        level[block.row][block.col] = 'X'
+
+    for spike in g.level.spikes:
+        level[spike.row][spike.col] = '^'
+
+
+    return '\n'.join([''.join(row) for row in level])
+
 
 def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution):
     g = Game()
@@ -676,7 +687,7 @@ if __name__ == '__main__':
 
     elif args.repair:
         repair(args.levelfile, True, args.partial, not args.hidestates, True)
-
+        
     elif args.playability:
         print(percent_playable(args.levelfile, True, args.partial, args.flaw))
 
