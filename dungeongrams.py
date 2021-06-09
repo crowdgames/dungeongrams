@@ -512,6 +512,10 @@ def play(levelfile, is_file, partial):
 
 
 def repair(levelfile, is_file, partial, display_states, display_solution):
+    '''
+    Repair assuming partial in its output for right now. This should be updated
+    in the future.
+    '''
     g = Game()
     g.loadself(levelfile, is_file, partial)
     modifications = [None]
@@ -541,6 +545,8 @@ def repair(levelfile, is_file, partial, display_states, display_solution):
     for spike in g.level.spikes:
         level[spike.row][spike.col] = '^'
 
+    for switch in g.state.switches:
+        level[switch.row][switch.col] = '*'
 
     return '\n'.join([''.join(row) for row in level])
 
