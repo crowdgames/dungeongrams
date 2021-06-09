@@ -23,9 +23,6 @@ MOD_SPIKE = 0
 MOD_BLOCK = 1
 MOD_ENEMY = 2
 
-MOD_COST = 10
-MOD_COST = 1 
-
 class State:
     def __init__(self):
         self.player = None
@@ -165,17 +162,21 @@ class Game:
             if new_player_pos in level.blocks:
                 mod = Modification(MOD_BLOCK, new_player_pos)
                 newstate.player = new_player_pos
-            elif new_player_pos in level.spikes:
-                mod = Modification(MOD_SPIKE, new_player_pos)
-                newstate.player = new_player_pos
-            elif new_player_pos in state.enemies:
-                mod = Modification(MOD_ENEMY, new_player_pos)
-                newstate.player = new_player_pos
 
             # otherwise, the position is out of bounds and we continue to the rest of the function
 
         if Game.playercollidehazard(level, newstate):
-            newstate.didlose = True
+            if allow_mod:
+                if new_player_pos in level.spikes:
+                    mod = Modification(MOD_SPIKE, new_player_pos)
+                else:
+                    try:
+                        enemy_index = newstate.enemies.index(new_player_pos)
+                        mod = Modification(MOD_ENEMY, level.enemyst[enemy_index])
+                    except ValueError:
+                        pass
+            else:
+                newstate.didlose = True
             
         elif newstate.player == newstate.exit:
             newstate.didwin = True
@@ -417,14 +418,13 @@ def dosolve(level, state, slow, allow_mod=False):
     min_switches = len(start.switches)
     state_count = 0
 
-    print('WARNING: put back in the state_count limit that is commented out.')
     while len(frontier) > 0:
         current_pri, current_tup, current = heapq.heappop(frontier)
 
         # stop after checking too many states
         state_count += 1
-        # if state_count > 100 * level.width * level.height:
-        #     break
+        if state_count > 100 * level.width * level.height:
+            break
 
         # don't search states that have too many more remaining switches than the best seen so far
         if len(current.switches) < min_switches:
@@ -435,7 +435,6 @@ def dosolve(level, state, slow, allow_mod=False):
         if current.didwin:
             best_state_guess = 1.0
             best_state_tup = current_tup
-            print('won!')
             break
 
         actions_available = ACTIONS
@@ -449,7 +448,7 @@ def dosolve(level, state, slow, allow_mod=False):
             if mod in [None]:
                 new_cost = cost_so_far[current_tup] + 1
             else:
-                new_cost = cost_so_far[current_tup] + MOD_COST
+                new_cost = cost_so_far[current_tup] + level.width + level.height
 
             if nbr_tup not in cost_so_far or new_cost < cost_so_far[nbr_tup]:
                 cost_so_far[nbr_tup] = new_cost
@@ -481,7 +480,6 @@ def dosolve(level, state, slow, allow_mod=False):
     actions.reverse()
     actions = actions[1:]
     path.reverse()
-    print('modifications:', modifications)
 
     # debug check
     # chk_state = state.clone()
@@ -519,18 +517,20 @@ def repair(levelfile, is_file, partial, display_states, display_solution):
     modifications = [None]
     while len(modifications) > 0:
         solved, actions, modifications = dosolve(g.level, g.state.clone(), False, allow_mod=True)
-        print(modifications)
         for mod in modifications:
             if mod.type == MOD_BLOCK:
                 g.level.blocks.remove(mod.pos)
             elif mod.type == MOD_SPIKE:
                 g.level.spikes.remove(mod.pos)
             elif mod.type == MOD_ENEMY:
-                g.state.enemies = [pos for pos in g.state.enemies if pos == mod.pos]
+                g.state.enemies = [pos for pos in g.state.enemies if pos != mod.pos]
+                g.level.enemyst = [pos for pos in g.level.enemyst if pos != mod.pos]
             else:
                 raise TypeError(f'Unrecognized modification type ({mod.type}) for position {mod.pos}')
     
-    run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
+    if display_states or display_solution:
+        run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
+
 
     # I need to take state and level get a string out of that.
 
