@@ -518,10 +518,13 @@ def repair(levelfile, is_file, partial, display_states, display_solution):
     '''
     g = Game()
     g.loadself(levelfile, is_file, partial)
+    modifications_made = 0
     modifications = [None]
+
     while len(modifications) > 0:
         solved, actions, modifications = dosolve(g.level, g.state.clone(), False, allow_mod=True)
         for mod in modifications:
+            modifications_made += 1
             if mod.type == MOD_BLOCK:
                 g.level.blocks.remove(mod.pos)
             elif mod.type == MOD_SPIKE:
@@ -548,7 +551,7 @@ def repair(levelfile, is_file, partial, display_states, display_solution):
     for switch in g.state.switches:
         level[switch.row][switch.col] = '*'
 
-    return '\n'.join([''.join(row) for row in level])
+    return '\n'.join([''.join(row) for row in level]), modifications_made
 
 
 def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution):
