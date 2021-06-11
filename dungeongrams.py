@@ -18,10 +18,15 @@ FLAWS = [
 ENEMY_RANGE = 3
 
 Position = namedtuple('Position', ['row', 'col'])
+
+def square_distance(pos_1, pos_2):
+    return (pos_1.row - pos_2.row)**2 + (pos_1.col - pos_2.col)**2
+
 Modification = namedtuple('Modification', ['type', 'pos'])
 MOD_SPIKE = 0
 MOD_BLOCK = 1
 MOD_ENEMY = 2
+
 
 class State:
     def __init__(self):
@@ -344,7 +349,7 @@ class Game:
                 elif char == 'O':
                     if state.exit != None:
                         raise RuntimeError('multiple exits found')
-                    state.exit = (rr, cc)
+                    state.exit = Position(rr, cc)
                 else:
                     raise RuntimeError(f'unrecognized character: {char}')
 
@@ -394,7 +399,7 @@ def heur(level, state):
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
 
-def dosolve(level, state, slow, allow_mod=False):
+def dosolve(level, state, slow, allow_mod=False, mod_cost=1):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
     start = state.clone()
     start_tup = start.totuple()
@@ -435,6 +440,7 @@ def dosolve(level, state, slow, allow_mod=False):
         if current.didwin:
             best_state_guess = 1.0
             best_state_tup = current_tup
+            print('i won!')
             break
 
         actions_available = ACTIONS
@@ -448,11 +454,10 @@ def dosolve(level, state, slow, allow_mod=False):
             if mod in [None]:
                 new_cost = cost_so_far[current_tup] + 1
             else:
-                new_cost = cost_so_far[current_tup] + level.width + level.height
+                new_cost = cost_so_far[current_tup] + mod_cost
 
             if nbr_tup not in cost_so_far or new_cost < cost_so_far[nbr_tup]:
                 cost_so_far[nbr_tup] = new_cost
-
                 priority = new_cost + heur(level, nbr)
 
                 guess = compl_guess(level, nbr)
@@ -497,7 +502,7 @@ def dosolve(level, state, slow, allow_mod=False):
     # if not path_found and chk_state.didwin:
     #     raise RuntimeError('actions lead to winning state but should not')
 
-    return path_found, actions, modifications
+    return path_found, actions, modifications, best_state_tup
 
 
 
@@ -520,9 +525,18 @@ def repair(levelfile, is_file, partial, display_states, display_solution):
     g.loadself(levelfile, is_file, partial)
     modifications_made = 0
     modifications = [None]
+    cost = g.level.width + g.level.height
+    player_pos = g.state.player
+    switches = g.state.switches
 
-    while len(modifications) > 0:
-        solved, actions, modifications = dosolve(g.level, g.state.clone(), False, allow_mod=True)
+    while True:
+        temp_state = g.state.clone()
+        solved, actions, modifications, best_tup = dosolve(g.level, temp_state, False, allow_mod=True, mod_cost=cost)
+        best_pos = best_tup[0]
+
+        if len(modifications) == 0 and g.state.player == player_pos and best_tup[0] == g.state.exit:
+            break
+
         for mod in modifications:
             modifications_made += 1
             if mod.type == MOD_BLOCK:
@@ -534,8 +548,18 @@ def repair(levelfile, is_file, partial, display_states, display_solution):
                 g.level.enemyst = [pos for pos in g.level.enemyst if pos != mod.pos]
             else:
                 raise TypeError(f'Unrecognized modification type ({mod.type}) for position {mod.pos}')
+
+        if best_pos == g.state.exit:
+            g.state.player = player_pos
+            g.state.switches = switches
+        else:
+            g.state.player = best_pos
+            g.state.switches = best_tup[4]
+
+        cost = max(1, cost - cost // 4)
     
     if display_states or display_solution:
+        g.state.player = player_pos
         run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
 
     level = [['-' for _ in range(g.level.width)] for _ in range(g.level.height)]
@@ -558,7 +582,7 @@ def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_sol
     g = Game()
     g.loadself(levelfile, is_file, partial)
 
-    solved, actions, _ = solve_for_run(g.level, g.state.clone(), flaw,)
+    solved, actions, _, _ = solve_for_run(g.level, g.state.clone(), flaw,)
     return run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
 
 def solve_for_run(level, state, flaw, allow_mod=False):
