@@ -3,6 +3,23 @@ from os.path import isfile
 
 ACTIONS = [ '', 'w', 'a', 's', 'd' ]
 
+STAMINA_STARTING    = 30
+STAMINA_FOOD        = 30
+
+ENEMY_RANGE = 3
+
+CHAR_BLANK          = '-'
+CHAR_PLAYER_PLAYING = '@'
+CHAR_PLAYER_WON     = '!'
+CHAR_PLAYER_LOST    = '%'
+CHAR_EXIT_CLOSED    = 'o'
+CHAR_EXIT_OPEN      = 'O'
+CHAR_ENEMY          = '#'
+CHAR_SWITCH         = '*'
+CHAR_FOOD           = '&'
+CHAR_SPIKE          = '^'
+CHAR_BLOCK          = 'X'
+
 FLAW_NO_FLAW = 'no_flaw'
 FLAW_NO_SPIKE = 'no_spike'
 FLAW_NO_HAZARD = 'no_hazard'
@@ -14,44 +31,48 @@ FLAWS = [
     FLAW_NO_SPEED
     ]
 
-ENEMY_RANGE = 3
-
 
 
 class State:
     def __init__(self):
         self.player = None
+        self.stamina = None
         self.exit = None
         self.enemies = []
         self.enemymv = False
         self.switches = []
+        self.food = []
         self.didwin = False
         self.didlose = False
 
     def clone(self):
         ret = State()
         ret.player = self.player
+        ret.stamina = self.stamina
         ret.exit = self.exit
         ret.enemies = list(self.enemies)
         ret.enemymv = self.enemymv
         ret.switches = list(self.switches)
+        ret.food = list(self.food)
         ret.didwin = self.didwin
         ret.didlose = self.didlose
         return ret
 
     def totuple(self):
-        return (self.player, self.exit, tuple(self.enemies), self.enemymv, tuple(self.switches), self.didwin, self.didlose)
+        return (self.player, self.stamina, self.exit, tuple(self.enemies), self.enemymv, tuple(self.switches), tuple(self.food), self.didwin, self.didlose)
 
     @staticmethod
     def fromtuple(tup):
         ret = State()
         ret.player = tup[0]
-        ret.exit = tup[1]
-        ret.enemies = list(tup[2])
-        ret.enemymv = tup[3]
-        ret.switches = list(tup[4])
-        ret.didwin = tup[5]
-        ret.didlose = tup[6]
+        ret.stamina = tup[1]
+        ret.exit = tup[2]
+        ret.enemies = list(tup[3])
+        ret.enemymv = tup[4]
+        ret.switches = list(tup[5])
+        ret.food = list(tup[6])
+        ret.didwin = tup[7]
+        ret.didlose = tup[8]
         return ret
 
 
@@ -74,8 +95,6 @@ class Game:
 
         self.level = None
         self.state = None
-
-
 
     @staticmethod
     def validmoveforplayer(level, state, rc, dr, dc):
@@ -108,7 +127,7 @@ class Game:
         nc = rc[1] + dc
 
         tup = (nr, nc)
-        
+
         if tup == state.exit:
             return False
 
@@ -119,6 +138,9 @@ class Game:
             return False
 
         if tup in state.switches:
+            return False
+
+        if tup in state.food:
             return False
 
         return tup
@@ -159,19 +181,23 @@ class Game:
 
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
-            
+
         elif newstate.player == newstate.exit:
             newstate.didwin = True
 
         elif newstate.player in newstate.switches:
             del newstate.switches[newstate.switches.index(newstate.player)]
 
-        
+        elif newstate.player in newstate.food:
+            newstate.stamina += STAMINA_FOOD
+            del newstate.food[newstate.food.index(newstate.player)]
+
+
         if not newstate.enemymv:
             newstate.enemymv = True
         else:
             newstate.enemymv = False
-            
+
             for ii in range(len(newstate.enemies)):
                 strr, stcc = level.enemyst[ii]
                 stdr = newstate.player[0] - strr
@@ -183,7 +209,7 @@ class Game:
                 else:
                     tgrr = level.enemyst[ii][0]
                     tgcc = level.enemyst[ii][1]
-                    
+
                 err, ecc = newstate.enemies[ii]
                 edr = tgrr - err
                 edc = tgcc - ecc
@@ -238,50 +264,63 @@ class Game:
         if Game.playercollidehazard(level, newstate):
             newstate.didlose = True
 
+        newstate.stamina -= 1
+        if newstate.stamina < 0:
+                raise RuntimeError('negative stamina')
+        if newstate.stamina == 0:
+            newstate.didlose = True
+
         return newstate
 
     @staticmethod
     def display(level, state):
         for cc in range(level.width + 2):
-            sys.stdout.write('X')
+            sys.stdout.write(CHAR_BLOCK)
         sys.stdout.write('\n')
-        
+
         for rr in range(level.height):
-            sys.stdout.write('X')
+            sys.stdout.write(CHAR_BLOCK)
             for cc in range(level.width):
                 if (rr, cc) == state.player:
                     if state.didlose:
-                        sys.stdout.write('%')
+                        sys.stdout.write(CHAR_PLAYER_LOST)
                     elif state.didwin:
-                        sys.stdout.write('!')
+                        sys.stdout.write(CHAR_PLAYER_WON)
                     else:
-                        sys.stdout.write('@')
+                        sys.stdout.write(CHAR_PLAYER_PLAYING)
                 elif (rr, cc) in state.enemies:
-                    sys.stdout.write('#')
+                    sys.stdout.write(CHAR_ENEMY)
                 elif (rr, cc) in level.spikes:
-                    sys.stdout.write('^')
+                    sys.stdout.write(CHAR_SPIKE)
                 elif (rr, cc) in state.switches:
-                    sys.stdout.write('*')
+                    sys.stdout.write(CHAR_SWITCH)
+                elif (rr, cc) in state.food:
+                    sys.stdout.write(CHAR_FOOD)
                 elif (rr, cc) == state.exit:
                     if len(state.switches) == 0:
-                        sys.stdout.write('O')
+                        sys.stdout.write(CHAR_EXIT_OPEN)
                     else:
-                        sys.stdout.write('o')
+                        sys.stdout.write(CHAR_EXIT_CLOSED)
                 elif (rr, cc) in level.blocks:
-                    sys.stdout.write('X')
+                    sys.stdout.write(CHAR_BLOCK)
                 else:
                     sys.stdout.write('-')
-            sys.stdout.write('X')
+            sys.stdout.write(CHAR_BLOCK)
             sys.stdout.write('\n')
 
         for cc in range(level.width + 2):
-            sys.stdout.write('X')
+            sys.stdout.write(CHAR_BLOCK)
+        sys.stdout.write('\n')
+
+        sys.stdout.write('stamina: %d\n' % state.stamina)
         sys.stdout.write('\n')
 
     @staticmethod
     def load(filename, is_file, partial):
         level = Level()
         state = State()
+
+        state.stamina = STAMINA_STARTING
 
         if is_file:
             rows = []
@@ -294,8 +333,8 @@ class Game:
         if partial:
             newrows = []
             for rr, row in enumerate(rows):
-                pref = '@-' if rr == 0 else '--'
-                suff = '-O' if rr + 1 == len(rows) else '--'
+                pref = (CHAR_PLAYER_PLAYING + CHAR_BLANK) if rr == 0             else (CHAR_BLANK + CHAR_BLANK)
+                suff = (CHAR_BLANK + CHAR_EXIT_OPEN)      if rr + 1 == len(rows) else (CHAR_BLANK + CHAR_BLANK)
                 newrows.append(pref + row + suff)
             rows = newrows
 
@@ -310,21 +349,23 @@ class Game:
             for cc, char in enumerate(row):
                 if char == '-':
                     pass
-                elif char == 'X':
+                elif char == CHAR_BLOCK:
                     level.blocks.add((rr, cc))
-                elif char == '#':
+                elif char == CHAR_ENEMY:
                     state.enemies.append((rr, cc))
                     level.enemyst.append((rr, cc))
-                elif char == '^':
+                elif char == CHAR_SPIKE:
                     level.spikes.add((rr, cc))
-                elif char == '*':
+                elif char == CHAR_SWITCH:
                     state.switches.append((rr, cc))
                     level.switchcount += 1
-                elif char == '@':
+                elif char == CHAR_FOOD:
+                    state.food.append((rr, cc))
+                elif char == CHAR_PLAYER_PLAYING:
                     if state.player != None:
                         raise RuntimeError('multiple players found')
                     state.player = (rr, cc)
-                elif char == 'O':
+                elif char == CHAR_EXIT_OPEN:
                     if state.exit != None:
                         raise RuntimeError('multiple exits found')
                     state.exit = (rr, cc)
@@ -350,13 +391,13 @@ class Game:
     def stepself(self, action):
         if not self.loaded:
             raise RuntimeError('not loaded')
-        
+
         self.state = Game.step(self.level, self.state, action)
 
     def displayself(self):
         if not self.loaded:
             raise RuntimeError('not loaded')
-        
+
         Game.display(self.level, self.state)
 
 
@@ -367,12 +408,12 @@ def completion(level, best_switches, best_cols):
 def heur(level, state):
     if len(state.switches) == 0:
         closest_dist_sqr = (state.player[0] - state.exit[0])**2 + (state.player[1] - state.exit[1])**2
-        return closest_dist_sqr**0.5
+        return -state.stamina + closest_dist_sqr**0.5
     else:
         closest_dist_sqr = 1e100
         for switch in state.switches:
             closest_dist_sqr = min(closest_dist_sqr, (state.player[0] - switch[0])**2 + (state.player[1] - switch[1])**2)
-        return closest_dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
+        return -state.stamina + closest_dist_sqr**0.5 + len(state.switches) * (level.width + level.height)
 
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
@@ -409,12 +450,12 @@ def dosolve(level, state, slow):
         if state_count > 100 * level.width * level.height:
             break
 
-	# don't search states that have too many more remaining switches than the best seen so far
+        # don't search states that have too many more remaining switches than the best seen so far
         if len(current.switches) < min_switches:
             min_switches = len(current.switches)
         elif len(current.switches) > min_switches + 1:
             continue
-        
+
         if current.didwin:
             best_state_guess = 1.0
             best_state_tup = current_tup
@@ -423,7 +464,7 @@ def dosolve(level, state, slow):
         actions_available = ACTIONS
         if slow and current.enemymv:
             actions_available = ['']
-        
+
         for action in actions_available:
             nbr = Game.step(level, current, action)
             nbr_tup = nbr.totuple()
@@ -468,7 +509,7 @@ def dosolve(level, state, slow):
 
     if path_found and not chk_state.didwin:
         raise RuntimeError('actions do not lead to winning state but should')
-            
+
     if not path_found and chk_state.didwin:
         raise RuntimeError('actions lead to winning state but should not')
 
@@ -502,7 +543,7 @@ def solve_for_run(level, state, flaw):
     slow = False
     if flaw == FLAW_NO_SPEED:
         slow = True
-    
+
     solve_start = state.clone()
     if flaw == FLAW_NO_SPIKE:
         raise RuntimeError('floaw not currently supported')
@@ -537,7 +578,7 @@ def solve_for_run(level, state, flaw):
                 solve_start.exit = (rr, cc)
         if solve_start.exit == solve_start.player:
             solve_start.didwin = True
-    
+
     # remove unreachable switches
     reachable_switches = []
     for switch in solve_start.switches:
@@ -604,7 +645,7 @@ def percent_playable(levelfile, is_file, partial, flaw):
         return 1.0
 
     return completion(level, best_switches, best_cols)
-    
+
 
 
 if __name__ == '__main__':
