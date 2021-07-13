@@ -440,7 +440,6 @@ def dosolve(level, state, slow, allow_mod=False, mod_cost=1):
         if current.didwin:
             best_state_guess = 1.0
             best_state_tup = current_tup
-            print('i won!')
             break
 
         actions_available = ACTIONS
