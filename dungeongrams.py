@@ -418,7 +418,7 @@ def heur(level, state):
 def compl_guess(level, state):
     return completion(level, level.switchcount - len(state.switches), state.player[1])
 
-def dosolve(level, state, slow):
+def dosolve(level, state, thorough, slow):
     # adapted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
     start = state.clone()
     start_tup = start.totuple()
@@ -441,20 +441,24 @@ def dosolve(level, state, slow):
 
     min_switches = len(start.switches)
     state_count = 0
+    state_count_max = 100 * level.width * level.height
+    if thorough:
+        state_count_max = (10 * level.width * level.height)**2
 
     while len(frontier) > 0:
         current_pri, current_tup, current = heapq.heappop(frontier)
 
         # stop after checking too many states
         state_count += 1
-        if state_count > 100 * level.width * level.height:
+        if state_count > state_count_max:
             break
 
         # don't search states that have too many more remaining switches than the best seen so far
-        if len(current.switches) < min_switches:
-            min_switches = len(current.switches)
-        elif len(current.switches) > min_switches + 1:
-            continue
+        if not thorough:
+            if len(current.switches) < min_switches:
+                min_switches = len(current.switches)
+            elif len(current.switches) > min_switches + 1:
+                continue
 
         if current.didwin:
             best_state_guess = 1.0
@@ -529,14 +533,14 @@ def play(levelfile, is_file, partial):
 
 
 
-def solve_and_run(levelfile, is_file, partial, flaw, display_states, display_solution):
+def solve_and_run(levelfile, is_file, partial, thorough, flaw, display_states, display_solution):
     g = Game()
     g.loadself(levelfile, is_file, partial)
 
-    solved, actions = solve_for_run(g.level, g.state.clone(), flaw)
+    solved, actions = solve_for_run(g.level, g.state.clone(), thorough, flaw)
     return run(g.level, g.state.clone(), actions, solved, display_states, display_solution)
 
-def solve_for_run(level, state, flaw):
+def solve_for_run(level, state, thorough, flaw):
     if flaw not in FLAWS:
         raise RuntimeError('unrecognized flaw')
 
@@ -586,7 +590,7 @@ def solve_for_run(level, state, flaw):
             reachable_switches.append(switch)
     solve_start.switches = reachable_switches
 
-    return dosolve(level, solve_start, slow)
+    return dosolve(level, solve_start, thorough, slow)
 
 def run(level, state, actions, should_solve, display_states, display_solution):
     best_switches = 0
@@ -638,8 +642,8 @@ def run(level, state, actions, should_solve, display_states, display_solution):
 
     return dsp_state.didwin, level, best_switches, best_cols
 
-def percent_playable(levelfile, is_file, partial, flaw):
-    didwin, level, best_switches, best_cols = solve_and_run(levelfile, is_file, partial, flaw, False, False)
+def percent_playable(levelfile, is_file, partial, thorough, flaw):
+    didwin, level, best_switches, best_cols = solve_and_run(levelfile, is_file, partial, thorough, flaw, False, False)
 
     if didwin:
         return 1.0
@@ -655,6 +659,7 @@ if __name__ == '__main__':
     parser.add_argument('--partial', action='store_true', help='Add player and exit to partial level.')
     parser.add_argument('--solve', action='store_true', help='Solve level.')
     parser.add_argument('--playability', action='store_true', help='Calculate level playability value.')
+    parser.add_argument('--thorough', action='store_true', help='Perform a more thorough, but slower, search for a solution.')
     parser.add_argument('--hidestates', action='store_true', help='Hide any solver states that would be displayed.')
     parser.add_argument('--flaw', type=str, help='Flaw for solver: ' + (', '.join(FLAWS)) + '.', default=FLAW_NO_FLAW)
     args = parser.parse_args()
@@ -662,11 +667,14 @@ if __name__ == '__main__':
     if int(args.play) + int(args.solve) + int(args.playability) != 1:
         raise RuntimeError('exactly one of --play, --solve, --playability must be given')
 
+    if args.thorough and not (args.solve or args.playability):
+        raise RuntimeError('--thorough only works with  --solve or --playability')
+
     if args.play:
         play(args.levelfile, True, args.partial)
 
     elif args.solve:
-        solve_and_run(args.levelfile, True, args.partial, args.flaw, not args.hidestates, True)
+        solve_and_run(args.levelfile, True, args.partial, args.thorough, args.flaw, not args.hidestates, True)
 
     elif args.playability:
-        print(percent_playable(args.levelfile, True, args.partial, args.flaw))
+        print(percent_playable(args.levelfile, True, args.partial, args.thorough, args.flaw))
