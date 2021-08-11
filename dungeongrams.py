@@ -441,20 +441,17 @@ def dosolve(level, state, thorough, slow):
 
     min_switches = len(start.switches)
     state_count = 0
-    state_count_max = 100 * level.width * level.height
-    if thorough:
-        state_count_max = (10 * level.width * level.height)**2
 
     while len(frontier) > 0:
         current_pri, current_tup, current = heapq.heappop(frontier)
 
-        # stop after checking too many states
-        state_count += 1
-        if state_count > state_count_max:
-            break
-
-        # don't search states that have too many more remaining switches than the best seen so far
         if not thorough:
+            # stop after checking too many states
+            state_count += 1
+            if state_count > 100 * level.width * level.height:
+                break
+
+            # don't search states that have too many more remaining switches than the best seen so far
             if len(current.switches) < min_switches:
                 min_switches = len(current.switches)
             elif len(current.switches) > min_switches + 1:
