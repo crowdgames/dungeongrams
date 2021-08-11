@@ -1,7 +1,7 @@
 import argparse, heapq, math, pprint, random, sys
 from os.path import isfile
 
-ACTIONS = [ '', 'w', 'a', 's', 'd' ]
+ACTIONS = [ ' ', 'w', 'a', 's', 'd' ]
 
 STAMINA_STARTING    = 30
 STAMINA_FOOD        = 30
@@ -162,7 +162,7 @@ class Game:
         if newstate.didlose:
             return newstate
 
-        if action in ['']:
+        if action in [' ']:
             pdr, pdc = 0, 0
         elif action in ['w']:
             pdr, pdc = -1, 0
@@ -464,7 +464,7 @@ def dosolve(level, state, thorough, slow):
 
         actions_available = ACTIONS
         if slow and current.enemymv:
-            actions_available = ['']
+            actions_available = [' ']
 
         for action in actions_available:
             nbr = Game.step(level, current, action)
@@ -550,10 +550,16 @@ def play(levelfile, is_file, partial):
 
     while True:
         g.displayself()
+
         action = getch()
+
         if action == 'q' or ord(action) == 3:
             break
-        g.stepself(action)
+
+        if action not in ACTIONS:
+            print('Unrecognized input.')
+        else:
+            g.stepself(action)
 
 
 
