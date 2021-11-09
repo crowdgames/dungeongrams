@@ -1,8 +1,8 @@
 ------------------XXXXXXXXXXXXX---X---
 ---X---#-------#--XXXXXXXXXXXXX---X---
 ---X--------------XXXXXXXXXXXXX---X---
----X--------------XXXXXXXXXXXXX---X---
----X---*-------*--XXXXXXXXXXXXX---X---
+---X------//\\----XXXXXXXXXXXXX---X---
+---X---*--\\//-*--XXXXXXXXXXXXX---X---
 ---XXXXXXXXXXXXXXXXXXXXXXXXXXXX---X---
 ---X---*--------------XXXXXXXXX---X---
 ---X----------------------XXXXX---X---

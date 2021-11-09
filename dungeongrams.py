@@ -19,6 +19,8 @@ CHAR_SWITCH         = '*'
 CHAR_FOOD           = '&'
 CHAR_SPIKE          = '^'
 CHAR_BLOCK          = 'X'
+CHAR_STRUCTURE_1    = '/'
+CHAR_STRUCTURE_2    = '\\'
 
 FLAW_NO_FLAW = 'no_flaw'
 FLAW_NO_SPIKE = 'no_spike'
@@ -29,7 +31,7 @@ FLAWS = [
     FLAW_NO_SPIKE,
     FLAW_NO_HAZARD,
     FLAW_NO_SPEED
-    ]
+]
 
 
 
@@ -351,6 +353,10 @@ class Game:
                     pass
                 elif char == CHAR_BLOCK:
                     level.blocks.add((rr, cc))
+                elif char == CHAR_STRUCTURE_1:
+                    level.blocks.add((rr, cc))
+                elif char == CHAR_STRUCTURE_2:
+                    level.blocks.add((rr, cc))
                 elif char == CHAR_ENEMY:
                     state.enemies.append((rr, cc))
                     level.enemyst.append((rr, cc))
@@ -369,6 +375,7 @@ class Game:
                     if state.exit != None:
                         raise RuntimeError('multiple exits found')
                     state.exit = (rr, cc)
+                
                 else:
                     raise RuntimeError(f'unrecognized character: {char}')
 
