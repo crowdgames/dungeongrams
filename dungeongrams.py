@@ -630,6 +630,7 @@ def solve_for_run(level, state, thorough, flaw):
     return dosolve(level, solve_start, thorough, slow)
 
 def run(level, state, actions, should_solve, display_states, display_solution):
+    positions = [state.player]
     best_switches = 0
     best_cols = 0
 
@@ -645,6 +646,7 @@ def run(level, state, actions, should_solve, display_states, display_solution):
 
     for action in actions:
         dsp_state = Game.step(level, dsp_state, action)
+        positions.append(dsp_state.player)
 
         if display_states:
             print(action)
@@ -677,17 +679,19 @@ def run(level, state, actions, should_solve, display_states, display_solution):
         print('Best switches: %d / %d.' % (best_switches, level.switchcount))
         print('Best column: %d / %d.' % (best_cols, level.width))
 
-    return dsp_state.didwin, level, best_switches, best_cols
+    return dsp_state.didwin, level, best_switches, best_cols, positions
 
 def percent_playable(levelfile, is_file, partial, thorough, flaw):
-    didwin, level, best_switches, best_cols = solve_and_run(levelfile, is_file, partial, thorough, flaw, False, False)
+    didwin, level, best_switches, best_cols, _ = solve_and_run(levelfile, is_file, partial, thorough, flaw, False, False)
 
     if didwin:
         return 1.0
 
     return completion(level, best_switches, best_cols)
 
-
+def get_path(levelfile, is_file, partial, thorough, flaw):
+    didwin, _, _, _, positions = solve_and_run(levelfile, is_file, partial, thorough, flaw, False, False)
+    return didwin, positions
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DungeonGrams game.')
