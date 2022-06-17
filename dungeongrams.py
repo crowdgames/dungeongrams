@@ -191,9 +191,8 @@ class Game:
             del newstate.switches[newstate.switches.index(newstate.player)]
 
         elif newstate.player in newstate.food:
-            newstate.stamina += STAMINA_FOOD
+            newstate.stamina = min(newstate.stamina + STAMINA_FOOD, STAMINA_STARTING)
             del newstate.food[newstate.food.index(newstate.player)]
-
 
         if not newstate.enemymv:
             newstate.enemymv = True
