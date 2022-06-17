@@ -4,7 +4,7 @@ from os.path import isfile
 ACTIONS = [ ' ', 'w', 'a', 's', 'd' ]
 
 STAMINA_STARTING    = 30
-STAMINA_FOOD        = 30
+STAMINA_FOOD        = 25
 
 ENEMY_RANGE = 3
 
