@@ -3,8 +3,8 @@ from os.path import isfile
 
 ACTIONS = [ ' ', 'w', 'a', 's', 'd' ]
 
-STAMINA_STARTING    = 30
-STAMINA_FOOD        = 25
+STAMINA_STARTING    = 40
+STAMINA_FOOD        = 30
 
 ENEMY_RANGE = 3
 
@@ -586,13 +586,9 @@ def solve_for_run(level, state, thorough, flaw):
 
     solve_start = state.clone()
     if flaw == FLAW_NO_SPIKE:
-        raise RuntimeError('floaw not currently supported')
-        #solve_start.spikes = set()
+        raise RuntimeError('flaw not currently supported')
     elif flaw == FLAW_NO_HAZARD:
-        raise RuntimeError('floaw not currently supported')
-        #solve_start.spikes = set()
-        #solve_start.enemies = []
-        #solve_start.enemyst = []
+        raise RuntimeError('flaw not currently supported')
 
     # determine reachable tiles
     processing = []
@@ -678,7 +674,7 @@ def run(level, state, actions, should_solve, display_states, display_solution):
         print('Best switches: %d / %d.' % (best_switches, level.switchcount))
         print('Best column: %d / %d.' % (best_cols, level.width))
 
-    return dsp_state.didwin, level, best_switches, best_cols, positions
+    return dsp_state.didwin, level, best_switches, best_cols, positions, dsp_state.stamina
 
 def percent_playable(levelfile, is_file, partial, thorough, flaw):
     didwin, level, best_switches, best_cols, _ = solve_and_run(levelfile, is_file, partial, thorough, flaw, False, False)
@@ -718,3 +714,4 @@ if __name__ == '__main__':
 
     elif args.playability:
         print(percent_playable(args.levelfile, True, args.partial, args.thorough, args.flaw))
+
