@@ -42,8 +42,8 @@ def proximity_to_enemies(level: List[str], path: List[Tuple[int, int]]) -> float
 
             if level[_y][_x] == '#':
                 in_proximity += manhattan_distance(x, y, _x, _y)
-            elif level[_y][_x] == '^':
-                in_proximity += 0.1*manhattan_distance(x, y, _x, _y)
+            # elif level[_y][_x] == '^':
+            #     in_proximity += 0.1*manhattan_distance(x, y, _x, _y)
 
     return in_proximity / len(path)
 
