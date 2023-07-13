@@ -50,7 +50,9 @@ def proximity_to_enemies(level: List[str], path: List[Tuple[int, int]]) -> float
 with open(os.path.join('difficulty', 'output.json'), 'r') as f:
     data = json.load(f)
 
-f = open('output.txt', 'w')
+readable_f = open('output.txt', 'w')
+computation_f = open('difficulty.csv', 'w')
+computation_f.write('name,difficulty,likert-difficulty\n')
 
 data_iterator = tqdm(data)
 for lvl_key in data_iterator:
@@ -79,13 +81,17 @@ for lvl_key in data_iterator:
         1.0 - (stamina_with_enemies/dungeongrams.STAMINA_STARTING)
     ]
     estimate = min(sum(difficulty)/float(len(difficulty)), 1)
+    likert = floor(estimate * (7 - 1)) + 1
 
-    f.write(f'Level: {lvl_key}\n')
+    readable_f.write(f'Level: {lvl_key}\n')
     # f.write(f'Path: {difficulty[0]}\n'\n')
-    f.write(f'Estimate: {estimate}\n')
-    f.write(f'7-Likert: {floor(estimate * (7 - 1)) + 1}\n')
-    f.write('\n'.join(level))
-    f.write('\n\n\n')
+    readable_f.write(f'Estimate: {estimate}\n')
+    readable_f.write(f'7-Likert: {likert}\n')
+    readable_f.write('\n'.join(level))
+    readable_f.write('\n\n\n')
 
-f.close()
+    computation_f.write(f'{lvl_key},{estimate},{likert}\n')
+
+readable_f.close()
+computation_f.close()
 print('output in output.txt')
