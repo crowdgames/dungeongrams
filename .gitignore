@@ -142,3 +142,4 @@ cython_debug/
 # difficulty
 output.txt
 difficulty.csv
+baseline_difficulty.csv
