@@ -165,7 +165,7 @@ for lvl_key in data_iterator:
     readable_f.write('\n\n\n')
 
     # Write difficulty vector to CSV for easier calculation
-    computation_f.write(f'{lvl_key},{",".join(d for d in V)}\n')
+    # computation_f.write(f'{lvl_key},{",".join(d for d in V)}\n')
 
     # Write data for comparison to a baseline
     D = 1 + (sum(float(x)/DG_RESOLUTION for x in lvl_key.split('_')) / 2.0) * 7.0
