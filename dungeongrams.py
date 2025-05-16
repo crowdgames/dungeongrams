@@ -374,7 +374,7 @@ class Game:
                     if state.exit != None:
                         raise RuntimeError('multiple exits found')
                     state.exit = (rr, cc)
-                
+
                 else:
                     raise RuntimeError(f'unrecognized character: {char}')
 
@@ -677,7 +677,7 @@ def run(level, state, actions, should_solve, display_states, display_solution):
     return dsp_state.didwin, level, best_switches, best_cols, positions, dsp_state.stamina
 
 def percent_playable(levelfile, is_file, partial, thorough, flaw):
-    didwin, level, best_switches, best_cols, _ = solve_and_run(levelfile, is_file, partial, thorough, flaw, False, False)
+    didwin, level, best_switches, best_cols, _, _ = solve_and_run(levelfile, is_file, partial, thorough, flaw, False, False)
 
     if didwin:
         return 1.0
